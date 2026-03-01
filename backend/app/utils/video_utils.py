@@ -3,7 +3,7 @@ Video Processing Utilities
 FFmpeg-based video manipulation
 """
 
-import ffmpeg
+import ffmpeg  # type: ignore
 import subprocess
 from pathlib import Path
 from app.core.logger import logger

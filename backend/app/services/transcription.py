@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 import os
 
 try:
-    from faster_whisper import WhisperModel
+    from faster_whisper import WhisperModel  # type: ignore
     WHISPER_AVAILABLE = True
 except ImportError:
     WHISPER_AVAILABLE = False

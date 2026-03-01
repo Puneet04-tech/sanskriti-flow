@@ -8,9 +8,9 @@ import json
 import re
 
 try:
-    from langchain.llms import LlamaCpp
-    from langchain.prompts import PromptTemplate
-    from langchain.chains import LLMChain
+    from langchain.llms import LlamaCpp  # type: ignore
+    from langchain.prompts import PromptTemplate  # type: ignore
+    from langchain.chains import LLMChain  # type: ignore
     LLAMA_AVAILABLE = True
 except ImportError:
     LLAMA_AVAILABLE = False
@@ -68,12 +68,14 @@ Generate only valid JSON, no additional text."""
         self.model_path = model_path or settings.LLAMA_MODEL
         
         logger.info(f"Initializing Llama model: {self.model_path}")
-                if not LLAMA_AVAILABLE:
+        
+        if not LLAMA_AVAILABLE:
             raise ImportError(
-                \"llama-cpp-python and langchain are not installed. \"
-                \"Install Visual C++ Build Tools, then: pip install llama-cpp-python langchain\"
+                "llama-cpp-python and langchain are not installed. "
+                "Install Visual C++ Build Tools, then: pip install llama-cpp-python langchain"
             )
-                try:
+        
+        try:
             # Initialize LlamaCpp
             self.llm = LlamaCpp(
                 model_path=self.model_path,

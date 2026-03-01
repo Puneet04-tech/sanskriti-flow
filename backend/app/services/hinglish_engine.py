@@ -3,7 +3,7 @@ Neural Hinglish Engine
 Preserves technical terms during translation using NER
 """
 
-import spacy
+import spacy  # type: ignore
 from typing import List, Set, Tuple
 from app.core.logger import logger
 from app.core.config import settings
