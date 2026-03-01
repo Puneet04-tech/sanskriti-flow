@@ -3,11 +3,18 @@ Transcription Service
 Uses Faster-Whisper for high-accuracy, local speech-to-text
 """
 
-from faster_whisper import WhisperModel
-from app.core.config import settings
-from app.core.logger import logger
 from typing import List, Dict, Optional
 import os
+
+try:
+    from faster_whisper import WhisperModel
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+    WhisperModel = None
+
+from app.core.config import settings
+from app.core.logger import logger
 
 
 class TranscriptionService:
@@ -36,6 +43,11 @@ class TranscriptionService:
         logger.info(
             f"Initializing Whisper model: {self.model_size} on {self.device}"
         )
+        
+        if not WHISPER_AVAILABLE:
+            raise ImportError(
+                "faster-whisper is not installed. Install it with: pip install faster-whisper"
+            )
         
         try:
             self.model = WhisperModel(

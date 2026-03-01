@@ -3,14 +3,23 @@ Interactive Quiz Generation Service
 Uses Llama 3.1 for contextual MCQ generation
 """
 
-from langchain.llms import LlamaCpp
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from app.core.config import settings
-from app.core.logger import logger
 from typing import List, Dict, Optional
 import json
 import re
+
+try:
+    from langchain.llms import LlamaCpp
+    from langchain.prompts import PromptTemplate
+    from langchain.chains import LLMChain
+    LLAMA_AVAILABLE = True
+except ImportError:
+    LLAMA_AVAILABLE = False
+    LlamaCpp = None
+    PromptTemplate = None
+    LLMChain = None
+
+from app.core.config import settings
+from app.core.logger import logger
 
 
 class QuizGenerationService:
@@ -59,8 +68,12 @@ Generate only valid JSON, no additional text."""
         self.model_path = model_path or settings.LLAMA_MODEL
         
         logger.info(f"Initializing Llama model: {self.model_path}")
-        
-        try:
+                if not LLAMA_AVAILABLE:
+            raise ImportError(
+                \"llama-cpp-python and langchain are not installed. \"
+                \"Install Visual C++ Build Tools, then: pip install llama-cpp-python langchain\"
+            )
+                try:
             # Initialize LlamaCpp
             self.llm = LlamaCpp(
                 model_path=self.model_path,

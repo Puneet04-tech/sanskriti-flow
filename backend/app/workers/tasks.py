@@ -3,6 +3,7 @@ Celery Tasks for Video Localization Pipeline
 """
 
 from app.workers.celery_app import celery_app
+from app.core.config import settings
 from app.core.logger import logger
 from app.services.transcription import get_transcription_service
 from app.services.translation import get_translation_service
