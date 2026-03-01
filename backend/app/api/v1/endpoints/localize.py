@@ -1,0 +1,98 @@
+"""
+Localization API Endpoints
+Handles video localization requests
+"""
+
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from app.models.schemas import (
+    LocalizationRequest,
+    JobResponse,
+    JobStatus,
+    LanguageCode,
+)
+from app.core.logger import logger
+import uuid
+
+router = APIRouter()
+
+
+@router.post("/", response_model=JobResponse)
+async def create_localization_job(request: LocalizationRequest):
+    """
+    Create a new video localization job
+
+    This endpoint accepts a video URL or file and queues it for localization
+    with the specified target language and features.
+
+    **Features:**
+    - Neural Hinglish Engine (preserves technical terms)
+    - Zero-Shot Voice Cloning
+    - Vision-Sync Overlays (optional)
+    - Neural Mirroring/Lip-Sync (optional)
+    - Interactive Quiz Generation (optional)
+    - Swar Assistive Audio (optional)
+    - Drishti Rural Mode (optional)
+    """
+    try:
+        # Validate input
+        if not request.video_url and not request.video_file:
+            raise HTTPException(
+                status_code=400,
+                detail="Either video_url or video_file must be provided",
+            )
+
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+
+        logger.info(
+            f"Created localization job {job_id} for language {request.target_language}"
+        )
+
+        # TODO: Queue job to Celery worker
+        # For now, return queued status
+        return JobResponse(
+            job_id=job_id,
+            status=JobStatus.QUEUED,
+            message=f"Job queued for processing. Target language: {request.target_language.value}",
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating localization job: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/upload", response_model=JobResponse)
+async def upload_and_localize(
+    file: UploadFile = File(...),
+    target_language: LanguageCode = Form(...),
+    enable_quiz: bool = Form(True),
+    enable_vision_sync: bool = Form(True),
+    enable_lip_sync: bool = Form(False),
+):
+    """
+    Upload a video file and create localization job
+
+    Accepts video file upload directly instead of URL.
+    """
+    try:
+        # Validate file type
+        if not file.content_type.startswith("video/"):
+            raise HTTPException(
+                status_code=400, detail="File must be a video format"
+            )
+
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+
+        logger.info(f"Uploaded video for job {job_id}, size: {file.size} bytes")
+
+        # TODO: Save file and queue job
+        return JobResponse(
+            job_id=job_id,
+            status=JobStatus.QUEUED,
+            message=f"Video uploaded and queued. Target language: {target_language.value}",
+        )
+
+    except Exception as e:
+        logger.error(f"Error uploading video: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
