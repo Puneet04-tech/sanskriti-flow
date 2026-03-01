@@ -20,33 +20,9 @@ Complete setup instructions for FOSS Hack 2026 submission.
 
 ## Installation Methods
 
-### Option 1: Docker (Recommended)
+### Native Setup (Recommended)
 
-**Quickest way to get started!**
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/sanskriti-flow.git
-cd sanskriti-flow
-
-# Start all services
-docker-compose up -d
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
-```
-
-Access:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
----
-
-### Option 2: Manual Setup
+**Best for local development and compatibility!**
 
 #### 1. Clone Repository
 ```bash

@@ -4,7 +4,7 @@
 - 📚 [Setup Guide](docs/SETUP.md)
 - 🏗️ [Architecture](docs/ARCHITECTURE.md)
 - 🔌 [API Docs](docs/API.md)
-- 🐳 [Docker Guide](docs/DOCKER.md)
+
 - 🤝 [Contributing](CONTRIBUTING.md)
 
 ## What We Built
@@ -86,8 +86,7 @@ A **complete, production-ready video localization pipeline** for educational con
 
 - **Voice Cloning**: Interface ready for CosyVoice2/Coqui TTS
 - **Lip-Sync**: Structure ready for LatentSync/Wav2Lip
-- **Docker**: Full containerization setup
-- **Scaling**: Redis-based task queue
+- **Scaling**: Redis-based task queue for distributed processing
 
 ## Technical Achievements
 
@@ -107,10 +106,10 @@ A **complete, production-ready video localization pipeline** for educational con
 - ✅ Scalable worker model
 
 ### DevOps
-- ✅ Docker containerization
-- ✅ docker-compose orchestration
+- ✅ Native setup automation
+- ✅ Setup scripts (Windows & Linux/Mac)
 - ✅ Environment configuration
-- ✅ Setup automation scripts
+- ✅ Multi-service orchestration
 - ✅ Git workflow with meaningful commits
 
 ## FOSS Compliance
@@ -210,18 +209,53 @@ A **complete, production-ready video localization pipeline** for educational con
 
 ## Try It Out
 
-### Quick Start (Docker)
+### Automated Setup
+
+**Windows:**
 ```bash
 git clone https://github.com/yourusername/sanskriti-flow.git
 cd sanskriti-flow
-docker-compose up -d
+.\scripts\setup.bat
 ```
 
-Access:
+**Linux/Mac:**
+```bash
+git clone https://github.com/yourusername/sanskriti-flow.git
+cd sanskriti-flow
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+### Start Services
+
+Open 3 terminals:
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+venv\Scripts\activate  # Linux/Mac: source venv/bin/activate
+uvicorn main:app --reload
+```
+
+**Terminal 2 - Worker:**
+```bash
+cd backend
+venv\Scripts\activate  # Linux/Mac: source venv/bin/activate
+celery -A app.workers.celery_app worker --loglevel=info
+```
+
+**Terminal 3 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+### Access
+
 - Frontend: http://localhost:3000
 - API: http://localhost:8000/docs
 
-### Manual Setup
+### Detailed Setup
 See [SETUP.md](docs/SETUP.md)
 
 ## Team

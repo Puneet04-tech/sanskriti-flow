@@ -54,19 +54,16 @@ sanskriti-flow/
 │   ├── SETUP.md              # Setup guide
 │   ├── ARCHITECTURE.md       # System architecture
 │   ├── API.md                # API documentation
-│   └── DOCKER.md             # Docker guide
+│   └── PROJECT_STRUCTURE.md  # This file
 │
 ├── scripts/                   # Automation scripts
 │   ├── setup.sh              # Linux/Mac setup
 │   └── setup.bat             # Windows setup
 │
-├── Dockerfile.backend         # Backend container
-├── Dockerfile.frontend        # Frontend container
-├── docker-compose.yml        # Orchestration
-│
 ├── README.md                 # Main documentation
 ├── LICENSE                   # GPL-3.0
 ├── CONTRIBUTING.md           # Contribution guide
+├── HACKATHON_SUMMARY.md      # FOSS Hack 2026 submission
 └── .gitignore                # Git ignore rules
 
 ```
@@ -94,13 +91,12 @@ sanskriti-flow/
 - **Total**: 7 documentation files
 
 ### Infrastructure
-- **Docker**: 3 files (2 Dockerfiles + compose)
 - **Scripts**: 2 files (setup scripts)
 - **Config**: 3 files (.env examples, gitignore)
-- **Total**: 8 infrastructure files
+- **Total**: 5 infrastructure files
 
 ### Grand Total
-**~40 source files** (excluding dependencies, models, and generated files)
+**~35 source files** (excluding dependencies, models, and generated files)
 
 ## Technology Breakdown
 

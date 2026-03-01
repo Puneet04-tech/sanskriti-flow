@@ -96,29 +96,93 @@ graph TB
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- Redis
+- Redis (or Memurai for Windows)
 - FFmpeg
-- CUDA-capable GPU (recommended)
+- CUDA-capable GPU (recommended, optional)
 
-### Backend Setup
+### Quick Setup
+
+**Windows:**
+```bash
+.\scripts\setup.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+### Manual Setup
+
+**1. Install Redis**
+
+*Windows:* Download [Memurai](https://www.memurai.com/) (Redis alternative for Windows)
+
+*Linux:*
+```bash
+sudo apt-get install redis-server
+sudo systemctl start redis
+```
+
+*Mac:*
+```bash
+brew install redis
+brew services start redis
+```
+
+**2. Backend Setup**
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Windows
+venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
+
 pip install -r requirements.txt
-uvicorn main:app --reload
+python -m spacy download en_core_web_sm
+
+# Create directories
+mkdir data\temp data\output data\cache models  # Windows
+mkdir -p data/temp data/output data/cache models  # Linux/Mac
+
+# Copy environment file
+copy .env.example .env  # Windows
+cp .env.example .env  # Linux/Mac
 ```
 
-### Frontend Setup
+**3. Frontend Setup**
 ```bash
 cd frontend
 npm install
-npm run dev
+cp .env.local.example .env.local
 ```
 
-### Worker Queue
+**4. Start Services**
+
+Open **3 separate terminals**:
+
+*Terminal 1 - Backend:*
 ```bash
-celery -A backend.worker worker --loglevel=info
+cd backend
+venv\Scripts\activate  # Windows: venv\Scripts\activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+*Terminal 2 - Worker:*
+```bash
+cd backend
+venv\Scripts\activate  # Windows: venv\Scripts\activate
+celery -A app.workers.celery_app worker --loglevel=info
+```
+
+*Terminal 3 - Frontend:*
+```bash
+cd frontend
+npm run dev
 ```
 
 ---
