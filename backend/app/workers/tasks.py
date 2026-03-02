@@ -272,11 +272,7 @@ def localize_video_task(
         # Stage 7: Add vision-sync overlays (optional) - TEMPORARILY DISABLED
         if options.get("enable_vision_sync", False):
             logger.warning(f"[{job_id}] Vision-sync overlays are temporarily disabled (feature under development)")
-            # Disabled - feature not fully implemented yet
-                # This would use Moondream2 for vision analysis in production
-                logger.info(f"[{job_id}] Vision sync would be applied here")
-            except Exception as e:
-                logger.warning(f"[{job_id}] Vision sync failed: {e}")
+
 
         # Stage 8: Finalize - Merge Hindi audio and add subtitles to video
         logger.info(f"[{job_id}] Stage 8: Finalizing video with Hindi audio + subtitles")
