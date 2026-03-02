@@ -219,11 +219,11 @@ def localize_video_task(
         translated_segments = []
         for segment in segments:
             try:
-                # Translate with Hinglish mode (preserve technical terms)
+                # Translate with Hinglish mode (Hindi + English technical terms)
                 translated_text = self.translation.translate(
                     text=segment["text"],
                     target_lang=target_language,
-                    preserve_technical=True  # Enable Hinglish mode by default
+                    preserve_technical=True  # Enable Hinglish: Hindi grammar + English technical terms
                 )
                 translated_segments.append({
                     "start": segment["start"],
@@ -233,11 +233,12 @@ def localize_video_task(
                 })
             except Exception as e:
                 logger.warning(f"[{job_id}] Translation failed for segment: {e}")
+                # Fallback to original text without language tags
                 translated_segments.append({
                     "start": segment["start"],
                     "end": segment["end"],
                     "original": segment["text"],
-                    "translated": f"[{target_language}] " + segment["text"]
+                    "translated": segment["text"]  # Use original text as fallback
                 })
         
         logger.info(f"[{job_id}] Translated {len(translated_segments)} segments")
@@ -363,11 +364,15 @@ def localize_video_task(
                         'ffmpeg', '-y',
                         '-i', video_input_path,  # Original video
                         '-i', hindi_audio_path,  # Hindi TTS audio
-                        '-filter_complex', f"[0:v]subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'[v]",
-                        '-map', '[v]',  # Use video with subtitles
+                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4',scale=in_range=full:out_range=limited",
+                        '-map', '0:v',  # Use video from first input
                         '-map', '1:a',  # Use Hindi audio (from second input)
-                        '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-                        '-pix_fmt', 'yuv420p',  # Maximum compatibility for all players
+                        '-c:v', 'libx264',
+                        '-preset', 'medium',
+                        '-crf', '23',
+                        '-profile:v', 'baseline',  # Maximum compatibility
+                        '-level', '3.0',
+                        '-pix_fmt', 'yuv420p',
                         '-c:a', 'aac', '-b:a', '192k',  # Encode Hindi audio
                         '-ar', '44100',  # Standard audio sample rate
                         '-ac', '2',  # Stereo audio
@@ -381,9 +386,13 @@ def localize_video_task(
                     cmd = [
                         'ffmpeg', '-y',
                         '-i', video_input_path,
-                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'",
-                        '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-                        '-pix_fmt', 'yuv420p',  # Maximum compatibility
+                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4',scale=in_range=full:out_range=limited",
+                        '-c:v', 'libx264',
+                        '-preset', 'medium',
+                        '-crf', '23',
+                        '-profile:v', 'baseline',  # Maximum compatibility
+                        '-level', '3.0',
+                        '-pix_fmt', 'yuv420p',
                         '-movflags', '+faststart',
                         '-c:a', 'copy',  # Copy original audio
                         output_path
