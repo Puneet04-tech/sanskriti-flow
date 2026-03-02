@@ -113,18 +113,25 @@ class TranslationService:
             # Translate only non-technical spans
             translated_parts = []
             for start, end, is_technical, span_text in spans:
-                if is_technical or len(span_text.strip()) == 0:
-                    # Keep technical terms and whitespace as-is
+                if is_technical:
+                    # Keep technical terms as-is
+                    translated_parts.append(span_text)
+                elif len(span_text.strip()) == 0:
+                    # Keep whitespace/punctuation as-is
                     translated_parts.append(span_text)
                 else:
                     # Translate non-technical text
-                    translated = self._translate_text(span_text.strip(), target_lang)
-                    # Preserve original spacing
-                    if span_text.startswith(' '):
-                        translated = ' ' + translated
-                    if span_text.endswith(' '):
-                        translated = translated + ' '
-                    translated_parts.append(translated)
+                    # Detect leading/trailing whitespace
+                    leading_space = span_text[:len(span_text) - len(span_text.lstrip())]
+                    trailing_space = span_text[len(span_text.rstrip()):]
+                    clean_text = span_text.strip()
+                    
+                    if clean_text:
+                        translated = self._translate_text(clean_text, target_lang)
+                        # Reassemble with original spacing
+                        translated_parts.append(leading_space + translated + trailing_space)
+                    else:
+                        translated_parts.append(span_text)
             
             result = ''.join(translated_parts)
             

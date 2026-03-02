@@ -285,7 +285,27 @@ class NeuralHinglishEngine:
         # Remove duplicates and sort by position
         protected_terms = sorted(set(protected_terms), key=lambda x: x[1])
         
-        return protected_terms
+        # Remove overlapping terms (keep longest or first)
+        non_overlapping = []
+        for term, start, end in protected_terms:
+            # Check if this term overlaps with any already added
+            overlaps = False
+            for i, (existing_term, existing_start, existing_end) in enumerate(non_overlapping):
+                # Check for overlap
+                if not (end <= existing_start or start >= existing_end):
+                    overlaps = True
+                    # Keep the longer term
+                    if (end - start) > (existing_end - existing_start):
+                        non_overlapping[i] = (term, start, end)
+                    break
+            
+            if not overlaps:
+                non_overlapping.append((term, start, end))
+        
+        # Sort final list by position
+        non_overlapping = sorted(non_overlapping, key=lambda x: x[1])
+        
+        return non_overlapping
 
     def mark_protected_terms(self, text: str) -> str:
         """
