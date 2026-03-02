@@ -291,8 +291,8 @@ class NeuralHinglishEngine:
         """
         Mark technical terms with special tokens for translation
         
-        Uses placeholder approach: Replace terms with [TERM_0], [TERM_1], etc.
-        This prevents the translation model from translating or corrupting them.
+        Uses email-like placeholder approach: Replace terms with XTERM0X, XTERM1X, etc.
+        This format is preserved by translation models (similar to how emails are preserved).
         
         Args:
             text: Input text
@@ -308,7 +308,8 @@ class NeuralHinglishEngine:
         # Process in reverse to maintain positions
         marked_text = text
         for idx, (term, start, end) in enumerate(reversed(terms)):
-            placeholder = f"[TERM_{idx}]"
+            # Use format that won't be tokenized/translated: XTERM{number}X
+            placeholder = f"XTERM{idx}X"
             self.term_mapping[placeholder] = term
             marked_text = (
                 marked_text[:start] +
@@ -328,15 +329,24 @@ class NeuralHinglishEngine:
         Returns:
             Clean text with original English terms restored
         """
-        # Restore terms from placeholders
+        # Restore terms from placeholders (XTERM0X, XTERM1X, etc.)
         result = text
         if hasattr(self, 'term_mapping'):
             for placeholder, original_term in self.term_mapping.items():
-                # Replace placeholder with original term
-                result = result.replace(placeholder, original_term)
+                # Replace placeholder with original term (case-insensitive)
+                result = re.sub(
+                    re.escape(placeholder),
+                    original_term,
+                    result,
+                    flags=re.IGNORECASE
+                )
         
         # Also handle any leftover TECH tags from old approach
         result = re.sub(r'<TECH>(.*?)</TECH>', r'\1', result)
+        
+        # Clean up any broken placeholders that might remain
+        # Remove patterns like [CER_0], [सीआईएम_0], etc.
+        result = re.sub(r'\[[A-Za-z\u0900-\u097F_0-9]+\]', '', result)
         
         # Apply Hindi simplification - replace heavy words with English
         result = self.simplify_hindi(result)
