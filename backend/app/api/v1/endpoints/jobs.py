@@ -6,11 +6,13 @@ Handles job status tracking and results retrieval
 from fastapi import APIRouter, HTTPException, Path
 from app.models.schemas import JobStatusResponse, JobStatus
 from app.core.logger import logger
+from app.workers.celery_app import celery_app
+from celery.result import AsyncResult
 from typing import Dict
 
 router = APIRouter()
 
-# Temporary in-memory job storage (will be replaced with Redis)
+# Temporary in-memory job storage for completed jobs
 jobs_db: Dict[str, JobStatusResponse] = {}
 
 
@@ -22,19 +24,62 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
     Returns the current processing status, progress, and result URL when complete.
     """
     try:
-        # TODO: Query actual job status from Celery/Redis
-        # For now, return mock status
+        # Check if job is in completed cache
         if job_id in jobs_db:
             return jobs_db[job_id]
 
-        # Mock response for demo
-        return JobStatusResponse(
-            job_id=job_id,
-            status=JobStatus.PROCESSING,
-            progress=45.5,
-            stage="Translating transcript",
-            eta_seconds=120,
-        )
+        # Query Celery task status
+        task_result = AsyncResult(job_id, app=celery_app)
+        
+        if task_result.state == "PENDING":
+            return JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.QUEUED,
+                progress=0,
+                stage="Waiting in queue",
+                eta_seconds=None,
+            )
+        elif task_result.state == "PROCESSING":
+            meta = task_result.info or {}
+            return JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.PROCESSING,
+                progress=meta.get("progress", 0),
+                stage=meta.get("stage", "Processing"),
+                eta_seconds=None,
+            )
+        elif task_result.state == "SUCCESS":
+            result = task_result.result or {}
+            response = JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.COMPLETED,
+                progress=100,
+                stage="Completed",
+                eta_seconds=0,
+                result_url=f"/api/v1/results/{job_id}.mp4",
+            )
+            # Cache completed job
+            jobs_db[job_id] = response
+            return response
+        elif task_result.state == "FAILURE":
+            error_info = str(task_result.info) if task_result.info else "Unknown error"
+            return JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.FAILED,
+                progress=0,
+                stage="Failed",
+                eta_seconds=0,
+                error=error_info,
+            )
+        else:
+            # Unknown state
+            return JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.QUEUED,
+                progress=0,
+                stage=f"State: {task_result.state}",
+                eta_seconds=None,
+            )
 
     except Exception as e:
         logger.error(f"Error retrieving job status: {str(e)}")

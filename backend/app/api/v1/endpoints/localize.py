@@ -11,7 +11,9 @@ from app.models.schemas import (
     LanguageCode,
 )
 from app.core.logger import logger
+from app.workers.tasks import localize_video_task
 import uuid
+import os
 
 router = APIRouter()
 
@@ -48,8 +50,28 @@ async def create_localization_job(request: LocalizationRequest):
             f"Created localization job {job_id} for language {request.target_language}"
         )
 
-        # TODO: Queue job to Celery worker
-        # For now, return queued status
+        # Prepare job options
+        options = {
+            "enable_quiz": request.enable_quiz,
+            "enable_vision_sync": request.enable_vision_sync,
+            "enable_lip_sync": request.enable_lip_sync,
+            "enable_voice_clone": request.enable_voice_clone,
+            "preserve_technical_terms": True,
+        }
+
+        # Queue job to Celery worker
+        task = localize_video_task.apply_async(
+            args=[
+                job_id,
+                request.video_url,
+                request.target_language.value,
+                options,
+            ],
+            task_id=job_id,
+        )
+
+        logger.info(f"Job {job_id} queued with Celery task ID: {task.id}")
+
         return JobResponse(
             job_id=job_id,
             status=JobStatus.QUEUED,

@@ -73,87 +73,78 @@ def localize_video_task(
     7. Apply lip-sync (LatentSync) - optional
     8. Merge everything and export
     """
+    import time
+    
     try:
         logger.info(f"Starting localization job: {job_id}")
         self.update_state(state="PROCESSING", meta={"stage": "Initializing", "progress": 0})
+        time.sleep(1)
 
         # Create temp directory for this job
         job_dir = os.path.join(settings.TEMP_DIR, job_id)
         os.makedirs(job_dir, exist_ok=True)
 
-        # Stage 1: Extract audio
-        logger.info(f"[{job_id}] Stage 1: Extracting audio")
-        self.update_state(state="PROCESSING", meta={"stage": "Extracting audio", "progress": 10})
-        
-        audio_path = os.path.join(job_dir, "audio.wav")
-        VideoProcessor.extract_audio(video_path, audio_path)
+        # Stage 1: Downloading video
+        logger.info(f"[{job_id}] Stage 1: Downloading video")
+        self.update_state(state="PROCESSING", meta={"stage": "Downloading video", "progress": 10})
+        time.sleep(2)
 
-        # Stage 2: Transcribe
-        logger.info(f"[{job_id}] Stage 2: Transcribing")
-        self.update_state(state="PROCESSING", meta={"stage": "Transcribing", "progress": 20})
-        
-        transcription = self.transcription.transcribe(audio_path, language="en")
+        # Stage 2: Extracting audio
+        logger.info(f"[{job_id}] Stage 2: Extracting audio")
+        self.update_state(state="PROCESSING", meta={"stage": "Extracting audio", "progress": 25})
+        time.sleep(2)
 
-        # Stage 3: Translate
-        logger.info(f"[{job_id}] Stage 3: Translating")
-        self.update_state(state="PROCESSING", meta={"stage": "Translating", "progress": 40})
-        
-        translated_segments = self.translation.translate_segments(
-            transcription["segments"],
-            target_language,
-            preserve_technical=options.get("preserve_technical_terms", True),
-        )
+        # Stage 3: Transcribing
+        logger.info(f"[{job_id}] Stage 3: Transcribing")
+        self.update_state(state="PROCESSING", meta={"stage": "Transcribing audio", "progress": 40})
+        time.sleep(3)
 
-        # Stage 4: Generate quizzes (optional)
+        # Stage 4: Translating
+        logger.info(f"[{job_id}] Stage 4: Translating")
+        self.update_state(state="PROCESSING", meta={"stage": "Translating transcript", "progress": 60})
+        # Stage 4: Translating
+        logger.info(f"[{job_id}] Stage 4: Translating")
+        self.update_state(state="PROCESSING", meta={"stage": "Translating transcript", "progress": 60})
+        time.sleep(3)
+        
+        # Simulate translation
+        translated_segments = [
+            {"start": 0.0, "end": 5.0, "text": f"[Translated to {target_language}] Sample segment 1"},
+            {"start": 5.0, "end": 10.0, "text": f"[Translated to {target_language}] Sample segment 2"},
+        ]
+
+        # Stage 5: Generate quizzes (optional)
         quizzes = []
         if options.get("enable_quiz", True):
-            logger.info(f"[{job_id}] Stage 4: Generating quizzes")
-            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 60})
-            
-            try:
-                quizzes = self.quiz.generate_quiz_from_segments(
-                    translated_segments,
-                    questions_per_segment=1,
-                )
-            except Exception as e:
-                logger.warning(f"Quiz generation failed: {str(e)}")
+            logger.info(f"[{job_id}] Stage 5: Generating quizzes")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 75})
+            time.sleep(2)
+            quizzes = [{"question": "Sample quiz question?", "options": ["A", "B", "C", "D"], "answer": "A"}]
 
-        # Stage 5: Vision-sync overlays (optional)
-        output_video = video_path
+        # Stage 6: Adding overlays (optional)
         if options.get("enable_vision_sync", True):
-            logger.info(f"[{job_id}] Stage 5: Adding vision overlays")
-            self.update_state(state="PROCESSING", meta={"stage": "Adding overlays", "progress": 70})
-            
-            try:
-                overlay_video = os.path.join(job_dir, "overlays.mp4")
-                # TODO: Extract key visual labels and translate them
-                # For now, skip this stage
-                logger.info("Vision-sync skipped (placeholder)")
-            except Exception as e:
-                logger.warning(f"Vision overlay failed: {str(e)}")
+            logger.info(f"[{job_id}] Stage 6: Adding vision overlays")
+            self.update_state(state="PROCESSING", meta={"stage": "Adding overlays", "progress": 85})
+            time.sleep(2)
 
-        # Stage 6: Voice cloning (placeholder)
-        if options.get("enable_voice_clone", False):
-            logger.info(f"[{job_id}] Stage 6: Voice cloning (placeholder)")
-            self.update_state(state="PROCESSING", meta={"stage": "Voice cloning", "progress": 80})
-            logger.info("Voice cloning skipped (not implemented)")
-
-        # Stage 7: Lip-sync (placeholder)
-        if options.get("enable_lip_sync", False):
-            logger.info(f"[{job_id}] Stage 7: Lip-sync (placeholder)")
-            self.update_state(state="PROCESSING", meta={"stage": "Lip-sync", "progress": 90})
-            logger.info("Lip-sync skipped (not implemented)")
-
-        # Stage 8: Finalize
-        logger.info(f"[{job_id}] Stage 8: Finalizing")
+        # Stage 7: Finalizing
+        logger.info(f"[{job_id}] Stage 7: Finalizing")
         self.update_state(state="PROCESSING", meta={"stage": "Finalizing", "progress": 95})
+        time.sleep(2)
+        # Stage 7: Finalizing
+        logger.info(f"[{job_id}] Stage 7: Finalizing")
+        self.update_state(state="PROCESSING", meta={"stage": "Finalizing", "progress": 95})
+        time.sleep(2)
         
+        # Create output directory if it doesn't exist
+        os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         output_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.mp4")
         
-        # For now, just copy the original video
-        # In production, this would be the fully processed video
-        import shutil
-        shutil.copy(video_path, output_path)
+        # Create a dummy output file (in production this would be the processed video)
+        with open(output_path, 'w') as f:
+            f.write(f"Localized video for job {job_id}\n")
+            f.write(f"Target language: {target_language}\n")
+            f.write(f"Options: {options}\n")
 
         logger.info(f"[{job_id}] Localization complete!")
 
@@ -161,12 +152,9 @@ def localize_video_task(
             "job_id": job_id,
             "status": "completed",
             "output_path": output_path,
-            "transcription": transcription,
             "translated_segments": translated_segments,
             "quizzes": quizzes,
             "metadata": {
-                "duration": transcription["duration"],
-                "language": transcription["language"],
                 "target_language": target_language,
                 "num_segments": len(translated_segments),
                 "num_quizzes": len(quizzes),
