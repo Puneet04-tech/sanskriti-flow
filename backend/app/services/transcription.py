@@ -85,19 +85,61 @@ class TranscriptionService:
                 language=language,
                 task=task,
                 beam_size=5,
+                best_of=5,  # Use best of 5 candidates
+                temperature=0.0,  # Deterministic, reduces hallucination
                 vad_filter=True,  # Voice Activity Detection
                 vad_parameters=dict(
-                    min_silence_duration_ms=500
+                    min_silence_duration_ms=500,
+                    threshold=0.5  # Stricter VAD threshold
                 ),
+                condition_on_previous_text=False,  # Reduces error propagation
+                compression_ratio_threshold=2.4,  # Detect gibberish
+                log_prob_threshold=-1.0,  # Filter low-confidence segments
+                no_speech_threshold=0.6,  # Filter silence
             )
             
-            # Convert generator to list
+            # Convert generator to list and filter gibberish
             segments_list = []
+            filtered_count = 0
+            
             for segment in segments:
+                text = segment.text.strip()
+                
+                # Filter out bad segments
+                if segment.no_speech_prob > 0.6:
+                    filtered_count += 1
+                    continue  # Skip silence
+                    
+                if segment.avg_logprob < -1.0:
+                    filtered_count += 1
+                    continue  # Skip low-confidence
+                    
+                if len(text) < 2:
+                    filtered_count += 1
+                    continue  # Skip too short
+                    
+                # Check for repetitive gibberish (same word repeated 3+ times)
+                words = text.lower().split()
+                if len(words) >= 3:
+                    # Count consecutive duplicates
+                    max_repeats = 1
+                    current_repeats = 1
+                    for i in range(1, len(words)):
+                        if words[i] == words[i-1]:
+                            current_repeats += 1
+                            max_repeats = max(max_repeats, current_repeats)
+                        else:
+                            current_repeats = 1
+                    
+                    if max_repeats >= 3:
+                        filtered_count += 1
+                        logger.warning(f"Filtered repetitive segment: '{text}'")
+                        continue
+                
                 segments_list.append({
                     "start": segment.start,
                     "end": segment.end,
-                    "text": segment.text.strip(),
+                    "text": text,
                     "avg_logprob": segment.avg_logprob,
                     "no_speech_prob": segment.no_speech_prob,
                 })
@@ -110,8 +152,8 @@ class TranscriptionService:
             }
             
             logger.info(
-                f"Transcription complete: {len(segments_list)} segments, "
-                f"language: {info.language}"
+                f"Transcription complete: {len(segments_list)} segments kept, "
+                f"{filtered_count} filtered, language: {info.language}"
             )
             
             return result

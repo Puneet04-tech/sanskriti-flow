@@ -102,6 +102,43 @@ class NeuralHinglishEngine:
         "thread": "धागा",       # thread
     }
 
+    # Heavy/Formal Hindi → Simple/Colloquial Hindi replacements
+    HINDI_SIMPLIFICATION = {
+        # Replace formal/heavy words with simple ones
+        "विश्लेषण": "analysis",  # Keep in English instead
+        "अनुयोग": "application",  # Keep in English
+        "प्रक्रिया": "process",  # Keep in English
+        "संरचना": "structure",  # Keep in English
+        "विधि": "method",  # Keep in English
+        "प्रणाली": "system",  # Keep in English
+        "तकनीक": "technique",  # Keep in English
+        "सॉफ्टवेयर": "software",  # Keep in English
+        "हार्डवेयर": "hardware",  # Keep in English
+        "डेटाबेस": "database",  # Keep in English
+        "नेटवर्क": "network",  # Keep in English
+        "इंटरनेट": "internet",  # Keep in English
+        "कंप्यूटर": "computer",  # Keep in English
+        "प्रोग्राम": "program",  # Keep in English
+        "एल्गोरिथ्म": "algorithm",  # Keep in English
+        "फंक्शन": "function",  # Keep in English
+        "वेरिएबल": "variable",  # Keep in English
+        "परीक्षण": "testing",  # Keep in English
+        "विकास": "development",  # Keep in English
+        "अनुसंधान": "research",  # Keep in English
+        "अध्ययन": "study",  # Keep in English
+        "परिणाम": "result",  # Keep in English
+        "उदाहरण":"example",  # Keep in English
+        "समस्या": "problem",  # Keep in English
+        "समाधान": "solution",  # Keep in English
+        "जानकारी": "information",  # Keep in English
+        "डाउनलोड": "download",  # Keep in English
+        "अपलोड": "upload",  # Keep in English
+        "इंस्टॉल": "install",  # Keep in English
+        "कॉन्फ़िगर": "configure",  # Keep in English
+        "ऑनलाइन": "online",  # Keep in English
+        "ऑफलाइन": "offline",  # Keep in English
+    }
+
     def __init__(self):
         """Initialize the Neural Hinglish Engine"""
         logger.info("Initializing Neural Hinglish Engine")
@@ -180,20 +217,28 @@ class NeuralHinglishEngine:
         """
         Mark technical terms with special tokens for translation
         
+        Uses placeholder approach: Replace terms with [TERM_0], [TERM_1], etc.
+        This prevents the translation model from translating or corrupting them.
+        
         Args:
             text: Input text
         
         Returns:
-            Text with protected terms marked as <TECH>term</TECH>
+            Text with protected terms replaced by placeholders, and mapping dict
         """
         terms = self.identify_technical_terms(text)
         
+        # Store the mapping of placeholders to original terms
+        self.term_mapping = {}
+        
         # Process in reverse to maintain positions
         marked_text = text
-        for term, start, end in reversed(terms):
+        for idx, (term, start, end) in enumerate(reversed(terms)):
+            placeholder = f"[TERM_{idx}]"
+            self.term_mapping[placeholder] = term
             marked_text = (
                 marked_text[:start] +
-                f"<TECH>{term}</TECH>" +
+                placeholder +
                 marked_text[end:]
             )
         
@@ -201,17 +246,49 @@ class NeuralHinglishEngine:
 
     def unmark_protected_terms(self, text: str) -> str:
         """
-        Remove protection markers after translation
+        Restore original English terms from placeholders
         
         Args:
-            text: Text with markers
+            text: Text with placeholders
         
         Returns:
-            Clean text with terms restored
+            Clean text with original English terms restored
         """
-        # Remove <TECH> tags
-        text = re.sub(r'<TECH>(.*?)</TECH>', r'\1', text)
-        return text
+        # Restore terms from placeholders
+        result = text
+        if hasattr(self, 'term_mapping'):
+            for placeholder, original_term in self.term_mapping.items():
+                # Replace placeholder with original term
+                result = result.replace(placeholder, original_term)
+        
+        # Also handle any leftover TECH tags from old approach
+        result = re.sub(r'<TECH>(.*?)</TECH>', r'\1', result)
+        
+        # Apply Hindi simplification - replace heavy words with English
+        result = self.simplify_hindi(result)
+        
+        return result
+
+    def simplify_hindi(self, text: str) -> str:
+        """
+        Replace heavy/formal Hindi words with English equivalents
+        
+        This prevents the use of complex Sanskrit-derived Hindi words
+        that are difficult to understand. Replaces them with English.
+        
+        Args:
+            text: Translated text with possible heavy Hindi words
+        
+        Returns:
+            Text with simplified vocabulary (more English, less heavy Hindi)
+        """
+        result = text
+        
+        # Replace each heavy Hindi word with its English equivalent
+        for heavy_hindi, simple_english in self.HINDI_SIMPLIFICATION.items():
+            result = result.replace(heavy_hindi, simple_english)
+        
+        return result
 
     def create_hinglish_text(
         self,
