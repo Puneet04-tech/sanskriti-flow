@@ -204,14 +204,19 @@ def localize_video_task(
                 {"start": 5.0, "end": 10.0, "text": "Sample transcription segment 2"}
             ]
 
-        # Stage 4: Translate transcript with NLLB-200
-        logger.info(f"[{job_id}] Stage 4: Translating to {target_language}")
+        # Stage 4: Translate transcript with NLLB-200 (Hinglish mode enabled)
+        logger.info(f"[{job_id}] Stage 4: Translating to {target_language} (Hinglish mode: technical terms in English)")
         self.update_state(state="PROCESSING", meta={"stage": f"Translating to {target_language}", "progress": 50})
         
         translated_segments = []
         for segment in segments:
             try:
-                translated_text = self.translation.translate(segment["text"], target_language)
+                # Translate with Hinglish mode (preserve technical terms)
+                translated_text = self.translation.translate(
+                    text=segment["text"],
+                    target_lang=target_language,
+                    preserve_technical=True  # Enable Hinglish mode by default
+                )
                 translated_segments.append({
                     "start": segment["start"],
                     "end": segment["end"],
@@ -229,11 +234,34 @@ def localize_video_task(
         
         logger.info(f"[{job_id}] Translated {len(translated_segments)} segments")
 
-        # Stage 5: Generate quiz questions (optional)
+        # Stage 5: Generate Hindi TTS audio (voice dubbing)
+        logger.info(f"[{job_id}] Stage 5: Generating Hindi audio (TTS)")
+        self.update_state(state="PROCESSING", meta={"stage": "Generating Hindi audio", "progress": 60})
+        
+        hindi_audio_path = os.path.join(job_dir, "hindi_audio.wav")
+        try:
+            # Generate Hindi TTS audio from translated segments
+            from app.services.voice_clone import get_voice_clone_service
+            tts_service = get_voice_clone_service()
+            
+            hindi_audio_path = tts_service.generate_speech_from_segments(
+                segments=translated_segments,
+                output_path=hindi_audio_path,
+                language=target_language,
+                slow=False
+            )
+            
+            audio_size = os.path.getsize(hindi_audio_path) / (1024 * 1024)
+            logger.info(f"[{job_id}] Generated Hindi audio: {audio_size:.2f} MB")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Hindi audio generation failed: {e}")
+            hindi_audio_path = None
+
+        # Stage 6: Generate quiz questions (optional)
         quizzes = []
         if options.get("enable_quiz", False):
-            logger.info(f"[{job_id}] Stage 5: Generating quiz questions")
-            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 65})
+            logger.info(f"[{job_id}] Stage 6: Generating quiz questions")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 70})
             
             try:
                 # Combine all translated text
@@ -243,17 +271,6 @@ def localize_video_task(
             except Exception as e:
                 logger.warning(f"[{job_id}] Quiz generation failed: {e}")
                 quizzes = []
-
-        # Stage 6: Generate voice clone with synthesized audio (optional)
-        if options.get("enable_voice_clone", False):
-            logger.info(f"[{job_id}] Stage 6: Generating voice clone")
-            self.update_state(state="PROCESSING", meta={"stage": "Cloning voice", "progress": 75})
-            
-            try:
-                # This would use CosyVoice2 in production
-                logger.info(f"[{job_id}] Voice cloning would be applied here")
-            except Exception as e:
-                logger.warning(f"[{job_id}] Voice cloning failed: {e}")
 
         # Stage 7: Add vision-sync overlays (optional)
         if options.get("enable_vision_sync", False):
@@ -266,9 +283,9 @@ def localize_video_task(
             except Exception as e:
                 logger.warning(f"[{job_id}] Vision sync failed: {e}")
 
-        # Stage 8: Finalize - Add subtitle overlays to video
-        logger.info(f"[{job_id}] Stage 8: Finalizing video with subtitles")
-        self.update_state(state="PROCESSING", meta={"stage": "Adding subtitles & finalizing", "progress": 95})
+        # Stage 8: Finalize - Merge Hindi audio and add subtitles to video
+        logger.info(f"[{job_id}] Stage 8: Finalizing video with Hindi audio + subtitles")
+        self.update_state(state="PROCESSING", meta={"stage": "Merging audio & subtitles", "progress": 95})
         
         # Create output directory if it doesn't exist
         os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
@@ -293,36 +310,76 @@ def localize_video_task(
             logger.warning(f"[{job_id}] Subtitle file creation failed: {e}")
             srt_path = None
         
-        # Burn subtitles into video
+        # Burn subtitles into video and replace audio
         try:
             if srt_path and os.path.exists(srt_path):
                 # Escape the subtitle path for ffmpeg (Windows path handling)
                 srt_path_escaped = srt_path.replace('\\', '/').replace(':', '\\\\:')
                 
-                # Burn subtitles into video using ffmpeg
-                cmd = [
-                    'ffmpeg', '-y',
-                    '-i', video_input_path,
-                    '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'",
-                    '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-                    '-c:a', 'copy',  # Copy audio without re-encoding
-                    output_path
-                ]
+                # Check if we have Hindi audio to merge
+                if hindi_audio_path and os.path.exists(hindi_audio_path):
+                    # Replace audio with Hindi TTS and burn subtitles
+                    logger.info(f"[{job_id}] Merging Hindi audio and burning subtitles...")
+                    cmd = [
+                        'ffmpeg', '-y',
+                        '-i', video_input_path,  # Original video
+                        '-i', hindi_audio_path,  # Hindi TTS audio
+                        '-filter_complex', f"[0:v]subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'[v]",
+                        '-map', '[v]',  # Use video with subtitles
+                        '-map', '1:a',  # Use Hindi audio (from second input)
+                        '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                        '-c:a', 'aac', '-b:a', '192k',  # Encode Hindi audio
+                        '-shortest',  # Match shortest stream
+                        output_path
+                    ]
+                else:
+                    # Just burn subtitles (no audio replacement)
+                    logger.info(f"[{job_id}] Burning subtitles only (no audio replacement)...")
+                    cmd = [
+                        'ffmpeg', '-y',
+                        '-i', video_input_path,
+                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'",
+                        '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                        '-c:a', 'copy',  # Copy original audio
+                        output_path
+                    ]
                 
-                logger.info(f"[{job_id}] Burning subtitles into video...")
+                logger.info(f"[{job_id}] Running ffmpeg to finalize video...")
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
                 
                 if result.returncode == 0:
                     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
                     logger.info(f"[{job_id}] Successfully created localized video: {file_size_mb:.2f} MB")
                 else:
-                    logger.warning(f"[{job_id}] Subtitle burning failed: {result.stderr[:500]}")
-                    raise Exception("Subtitle burning failed")
+                    logger.warning(f"[{job_id}] Video finalization failed: {result.stderr[:500]}")
+                    raise Exception("Video finalization failed")
             else:
-                # No subtitles, just copy the video
-                logger.info(f"[{job_id}] No subtitles, copying original video")
-                import shutil
-                shutil.copy2(video_input_path, output_path)
+                # No subtitles - just replace audio if available
+                if hindi_audio_path and os.path.exists(hindi_audio_path):
+                    logger.info(f"[{job_id}] Replacing audio with Hindi (no subtitles)")
+                    cmd = [
+                        'ffmpeg', '-y',
+                        '-i', video_input_path,
+                        '-i', hindi_audio_path,
+                        '-map', '0:v',  # Original video
+                        '-map', '1:a',  # Hindi audio
+                        '-c:v', 'copy',  # Copy video without re-encoding
+                        '-c:a', 'aac', '-b:a', '192k',
+                        '-shortest',
+                        output_path
+                    ]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                    
+                    if result.returncode == 0:
+                        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                        logger.info(f"[{job_id}] Successfully created video with Hindi audio: {file_size_mb:.2f} MB")
+                    else:
+                        raise Exception("Audio replacement failed")
+                else:
+                    # No processing - just copy the video
+                    logger.info(f"[{job_id}] No audio or subtitles, copying original video")
+                    import shutil
+                    shutil.copy2(video_input_path, output_path)
                 
         except Exception as e:
             logger.error(f"[{job_id}] Video finalization failed: {e}")

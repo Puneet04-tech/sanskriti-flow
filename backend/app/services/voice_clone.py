@@ -1,72 +1,105 @@
 """
-Voice Cloning Service (Placeholder)
-Integration point for CosyVoice2 or similar TTS systems
+Voice Cloning & TTS Service
+Uses gTTS (Google Text-to-Speech) for generating Hindi audio
 
-NOTE: This is a placeholder. Actual voice cloning requires:
-1. CosyVoice2 model weights
-2. Speaker embedding extraction
-3. Zero-shot TTS inference
-
-For FOSS Hack demo, this can use:
-- Coqui TTS (Mozilla)
-- Silero TTS
-- Or basic gTTS for prototyping
+Features:
+- Multi-language TTS (Hindi, Tamil, Telugu, etc.)
+- Natural-sounding speech synthesis
+- Automatic audio timing alignment
+- Support for Hinglish (technical terms preserved)
 """
 
 from app.core.logger import logger
 from app.core.config import settings
-from typing import Optional
+from typing import Optional, List, Dict
+from gtts import gTTS
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
 import os
+import tempfile
 
 
 class VoiceCloneService:
     """
-    Service for voice cloning and TTS generation
+    Service for TTS generation and audio synthesis
     
-    Planned Features:
-    - Zero-shot voice cloning from 5s sample
-    - Multilingual TTS
-    - Emotion preservation
-    - Prosody matching
+    Features:
+    - Hindi/Hinglish TTS using Google Text-to-Speech
+    - Segment-by-segment audio generation
+    - Automatic timing alignment
+    - High-quality audio output (MP3)
     """
 
-    def __init__(self):
-        """Initialize voice cloning service"""
-        logger.info("Initializing Voice Clone Service (Placeholder)")
-        logger.warning(
-            "Voice cloning requires external models. "
-            "Using placeholder for now."
-        )
-        self.available = False
+    # Language code mapping for gTTS
+    GTTS_LANG_MAP = {
+        "hi": "hi",  # Hindi
+        "ta": "ta",  # Tamil
+        "te": "te",  # Telugu
+        "bn": "bn",  # Bengali
+        "mr": "mr",  # Marathi
+        "gu": "gu",  # Gujarati
+        "kn": "kn",  # Kannada
+        "ml": "ml",  # Malayalam
+        "pa": "pa",  # Punjabi
+        "en": "en",  # English
+    }
 
-    def clone_voice(
+    def __init__(self):
+        """Initialize TTS service"""
+        logger.info("Initializing TTS Service (gTTS)")
+        self.available = True
+
+    def generate_speech_from_segments(
         self,
-        reference_audio: str,
-        text: str,
+        segments: List[Dict],
         output_path: str,
-        language: str = "en",
+        language: str = "hi",
+        slow: bool = False
     ) -> str:
         """
-        Clone voice and generate speech
+        Generate speech audio from translated text segments
         
         Args:
-            reference_audio: Path to reference audio (5-10s)
-            text: Text to synthesize
+            segments: List of dicts with 'text', 'start', 'end' keys
             output_path: Output audio file path
-            language: Target language code
+            language: Target language code (default: hi for Hindi)
+            slow: Whether to use slower speech speed
         
         Returns:
-            Path to generated audio
+            Path to generated audio file
         """
-        logger.warning("Voice cloning not implemented. Returning placeholder.")
-        
-        # TODO: Implement actual voice cloning
-        # For now, could use:
-        # 1. Coqui TTS: from TTS.api import TTS
-        # 2. gTTS for basic demo: from gtts import gTTS
-        # 3. Or create placeholder audio
-        
-        return output_path
+        try:
+            logger.info(f"Generating TTS audio for {len(segments)} segments in language: {language}")
+            
+            # Get appropriate language code for gTTS
+            gtts_lang = self.GTTS_LANG_MAP.get(language, "hi")
+            
+            # Combine all text with pauses
+            full_text = ". ".join([seg.get("translated", seg.get("text", "")) for seg in segments])
+            
+            # Generate TTS audio
+            tts = gTTS(text=full_text, lang=gtts_lang, slow=slow)
+            
+            # Save to temporary MP3 file first
+            temp_mp3 = output_path.replace('.wav', '_temp.mp3')
+            tts.save(temp_mp3)
+            
+            # Convert MP3 to WAV for better ffmpeg compatibility
+            audio = AudioSegment.from_mp3(temp_mp3)
+            audio.export(output_path, format="wav")
+            
+            # Clean up temp file
+            if os.path.exists(temp_mp3):
+                os.remove(temp_mp3)
+            
+            file_size = os.path.getsize(output_path) / (1024 * 1024)
+            logger.info(f"Generated TTS audio: {file_size:.2f} MB")
+            
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"TTS generation failed: {str(e)}")
+            raise
 
     def generate_speech_segments(
         self,
