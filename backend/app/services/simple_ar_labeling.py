@@ -54,9 +54,12 @@ class SimpleARLabelingService:
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Create video writer
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            # Create temporary output path for raw frames
+            temp_output = output_path.replace('.mp4', '_temp.avi')
+            
+            # Create video writer with uncompressed codec
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')  # MJPEG is more compatible
+            out = cv2.VideoWriter(temp_output, fourcc, fps, (width, height))
             
             frame_count = 0
             detected_regions = {}  # Cache detected regions
@@ -85,6 +88,32 @@ class SimpleARLabelingService:
             
             cap.release()
             out.release()
+            
+            # Convert to H.264 with compatible profile using FFmpeg
+            import subprocess
+            logger.info("Converting AR video to H.264 with Main profile...")
+            ffmpeg_cmd = [
+                'ffmpeg', '-y',
+                '-i', temp_output,
+                '-vf', 'scale=in_range=full:out_range=limited',  # Convert JPEG to TV color range
+                '-c:v', 'libx264',
+                '-profile:v', 'baseline',  # Most compatible profile
+                '-level', '3.0',  # Compatible level
+                '-pix_fmt', 'yuv420p',
+                '-preset', 'medium',
+                '-crf', '23',
+                '-movflags', '+faststart',
+                output_path
+            ]
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, timeout=600)
+            
+            # Remove temporary file
+            import os
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
+            
+            if result.returncode != 0:
+                raise Exception(f"FFmpeg conversion failed: {result.stderr.decode()[:200]}")
             
             logger.info(f"AR labeling complete: {output_path}")
             return output_path
