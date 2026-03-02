@@ -190,6 +190,58 @@ function JobsContent() {
                 </div>
               )}
 
+              {/* Quiz Questions Section */}
+              {searchResult.quizzes && searchResult.quizzes.length > 0 && (
+                <div className="bg-purple-500/20 rounded-lg p-6 border border-purple-500/30">
+                  <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                    <span>🧠</span>
+                    <span>Interactive Quiz</span>
+                  </h3>
+                  <p className="text-gray-300 text-sm mb-6">
+                    Test your understanding with these auto-generated questions from the video
+                  </p>
+                  
+                  <div className="space-y-6">
+                    {searchResult.quizzes.map((quiz: any, index: number) => (
+                      <div key={index} className="bg-white/5 rounded-lg p-5 border border-white/10">
+                        <p className="font-semibold text-lg mb-4">
+                          <span className="text-cyan-400">Q{index + 1}.</span> {quiz.question}
+                        </p>
+                        
+                        <div className="space-y-2 mb-4">
+                          {quiz.options && quiz.options.map((option: string, optIndex: number) => (
+                            <div
+                              key={optIndex}
+                              className={`p-3 rounded-lg border transition-all ${
+                                optIndex === quiz.correct_answer
+                                  ? 'bg-green-500/20 border-green-500/50'
+                                  : 'bg-white/5 border-white/20 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className="font-mono text-sm mr-2">
+                                {String.fromCharCode(65 + optIndex)}.
+                              </span>
+                              <span>{option}</span>
+                              {optIndex === quiz.correct_answer && (
+                                <span className="ml-2 text-green-400">✓ Correct</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {quiz.explanation && (
+                          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                            <p className="text-sm text-blue-200">
+                              <strong>Explanation:</strong> {quiz.explanation}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Error Message from Job */}
               {searchResult.error && (
                 <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
