@@ -102,36 +102,71 @@ def localize_video_task(
         self.update_state(state="PROCESSING", meta={"stage": "Downloading video", "progress": 5})
         
         download_success = False
-        try:
-            response = requests.get(video_path, stream=True, timeout=300, headers={'User-Agent': 'Mozilla/5.0'})
-            response.raise_for_status()
-            
-            # Download with progress tracking
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            with open(video_input_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-            
-            file_size = os.path.getsize(video_input_path)
-            logger.info(f"[{job_id}] Downloaded video: {file_size} bytes")
-            
-            # Validate the downloaded video with ffprobe
+        
+        # Check if URL is YouTube/supported streaming platform
+        is_youtube = any(domain in video_path.lower() for domain in ['youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com'])
+        
+        if is_youtube:
+            # Use yt-dlp for YouTube and streaming platforms
             try:
-                probe_result = subprocess.run(
-                    ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
-                    capture_output=True, timeout=10, text=True, check=True
-                )
-                duration = float(probe_result.stdout.strip())
-                logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
-                download_success = True
-            except Exception as probe_error:
-                logger.warning(f"[{job_id}] Video validation failed: {probe_error}. File might be corrupted.")
+                logger.info(f"[{job_id}] Using yt-dlp for video download")
+                result = subprocess.run([
+                    'yt-dlp',
+                    '-f', 'best[ext=mp4]/best',  # Prefer MP4 format
+                    '-o', video_input_path,
+                    '--no-playlist',
+                    video_path
+                ], capture_output=True, text=True, timeout=600, check=True)
                 
-        except Exception as e:
-            logger.warning(f"[{job_id}] Video download failed: {e}")
+                file_size = os.path.getsize(video_input_path)
+                logger.info(f"[{job_id}] Downloaded video with yt-dlp: {file_size} bytes")
+                
+                # Validate the downloaded video
+                try:
+                    probe_result = subprocess.run(
+                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
+                        capture_output=True, timeout=10, text=True, check=True
+                    )
+                    duration = float(probe_result.stdout.strip())
+                    logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
+                    download_success = True
+                except Exception as probe_error:
+                    logger.warning(f"[{job_id}] Video validation failed: {probe_error}")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] yt-dlp download failed: {e}")
+        else:
+            # Use direct download for other URLs
+            try:
+                response = requests.get(video_path, stream=True, timeout=300, headers={'User-Agent': 'Mozilla/5.0'})
+                response.raise_for_status()
+                
+                # Download with progress tracking
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+                with open(video_input_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                
+                file_size = os.path.getsize(video_input_path)
+                logger.info(f"[{job_id}] Downloaded video: {file_size} bytes")
+                
+                # Validate the downloaded video with ffprobe
+                try:
+                    probe_result = subprocess.run(
+                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
+                        capture_output=True, timeout=10, text=True, check=True
+                    )
+                    duration = float(probe_result.stdout.strip())
+                    logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
+                    download_success = True
+                except Exception as probe_error:
+                    logger.warning(f"[{job_id}] Video validation failed: {probe_error}. File might be corrupted.")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] Video download failed: {e}")
         
         if not download_success:
             logger.info(f"[{job_id}] Using sample video as fallback")
