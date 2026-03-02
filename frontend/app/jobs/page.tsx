@@ -1,27 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export default function JobsPage() {
+function JobsContent() {
   const searchParams = useSearchParams()
   const [jobId, setJobId] = useState('')
   const [searchResult, setSearchResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mounted, setMounted] = useState(false)
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Auto-load job if ID in URL
   useEffect(() => {
+    if (!mounted) return
     const idFromUrl = searchParams.get('id')
     if (idFromUrl) {
       setJobId(idFromUrl)
       // Trigger search automatically
       fetchJobStatus(idFromUrl)
     }
-  }, [searchParams])
+  }, [searchParams, mounted])
 
   const fetchJobStatus = async (id: string) => {
     setLoading(true)
@@ -234,6 +241,24 @@ export default function JobsPage() {
                 When complete, you'll see a download link for your localized video
               </li>
             </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    }>
+      <JobsContent />
+    </Suspense>
+  )
+}
           </div>
         )}
       </div>
