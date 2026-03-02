@@ -6,6 +6,7 @@ Handles job status tracking and results retrieval
 from fastapi import APIRouter, HTTPException, Path
 from app.models.schemas import JobStatusResponse, JobStatus
 from app.core.logger import logger
+from app.core.config import settings
 from app.workers.celery_app import celery_app
 from celery.result import AsyncResult
 from typing import Dict
@@ -56,7 +57,7 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 progress=100,
                 stage="Completed",
                 eta_seconds=0,
-                result_url=f"/api/v1/results/{job_id}.mp4",
+                result_url=f"{settings.BACKEND_URL}/api/v1/results/{job_id}.mp4",
             )
             # Cache completed job
             jobs_db[job_id] = response

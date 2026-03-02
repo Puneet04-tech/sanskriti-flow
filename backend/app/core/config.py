@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Sanskriti-Flow"
     VERSION: str = "1.0.0"
+    BACKEND_URL: str = "http://localhost:8000"
 
     # Security
     SECRET_KEY: str = "your-secret-key-here-change-in-production"
