@@ -74,6 +74,8 @@ class JobStatusResponse(BaseModel):
     eta_seconds: Optional[int] = Field(None, description="Estimated time remaining")
     result_url: Optional[str] = Field(None, description="URL of processed video if completed")
     error: Optional[str] = Field(None, description="Error message if failed")
+    quizzes: Optional[List[Dict]] = Field(None, description="Generated quiz questions if available")
+    metadata: Optional[Dict] = Field(None, description="Additional job metadata")
 
 
 class TranscriptSegment(BaseModel):
