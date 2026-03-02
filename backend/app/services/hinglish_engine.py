@@ -85,6 +85,39 @@ class NeuralHinglishEngine:
         "process", "calculate", "compute", "generate", "render", "parse",
         "validate", "verify", "authenticate", "authorize", "encrypt", "decrypt",
         
+        # Common English nouns (for natural Hinglish mixing)
+        "machine", "machines", "system", "systems", "device", "devices",
+        "industry", "industries", "factory", "factories", "company", "companies",
+        "video", "videos", "image", "images", "file", "files",
+        "course", "courses", "topic", "topics", "subject", "subjects",
+        "example", "examples", "problem", "problems", "solution", "solutions",
+        "method", "methods", "technique", "techniques", "approach", "approaches",
+        "concept", "concepts", "idea", "ideas", "theory", "theories",
+        "operation", "operations", "function", "functions", "feature", "features",
+        "component", "components", "part", "parts", "element", "elements",
+        "principle", "principles", "rule", "rules", "law", "laws",
+        "efficiency", "performance", "quality", "accuracy", "speed",
+        "transmission", "distribution", "generation",
+        
+        # Common English adjectives
+        "important", "useful", "powerful", "simple", "complex", "advanced",
+        "basic", "fundamental", "essential", "critical", "key", "main",
+        "high", "low", "fast", "slow", "large", "small", "big", "short",
+        "new", "old", "modern", "traditional", "common", "rare",
+        "good", "bad", "best", "worst", "better", "worse",
+        "easy", "difficult", "hard", "soft", "strong", "weak",
+        "electrical", "electronic", "mechanical", "thermal", "digital", "analog",
+        
+        # Common English verbs (action words for mixing)
+        "use", "used", "uses", "using",
+        "work", "works", "working", "worked",
+        "operate", "operates", "operating", "operated",
+        "play", "plays", "playing", "played",
+        "help", "helps", "helping", "helped",
+        "provide", "provides", "providing", "provided",
+        "cover", "covers", "covering", "covered",
+        "explain", "explains", "explaining", "explained",
+        
         # Units & Measurements
         "byte", "kilobyte", "megabyte", "gigabyte", "terabyte", "bit", "pixel",
         "hertz", "megahertz", "gigahertz", "second", "millisecond", "nanosecond",
@@ -408,17 +441,30 @@ class NeuralHinglishEngine:
         # Pattern to match isolated English helper verbs/prepositions at word boundaries
         # Only remove if they appear isolated (not part of technical terms)
         artifact_patterns = [
-            r'\s+is\s+',      # " is "
-            r'\s+is$',        # " is" at end
-            r'^is\s+',        # "is " at start
-            r'\s+are\s+',     # " are "
-            r'\s+be\s+',      # " be "
-            r'\s+been\s+',    # " been "
-            r'\s+being\s+',   # " being "
-            r'\s+was\s+',     # " was "
-            r'\s+were\s+',    # " were "
-            r'\s+isं\s+',     # " isं " (corrupted)
-            r'\s+isं$',       # " isं" at end
+            # Common helping verbs
+            r'\s+is\s+', r'\s+is$', r'^is\s+',
+            r'\s+are\s+', r'\s+are$', r'^are\s+',
+            r'\s+be\s+', r'\s+be$', r'^be\s+',
+            r'\s+been\s+', r'\s+been$', r'^been\s+',
+            r'\s+being\s+', r'\s+being$', r'^being\s+',
+            r'\s+was\s+', r'\s+was$', r'^was\s+',
+            r'\s+were\s+', r'\s+were$', r'^were\s+',
+            r'\s+do\s+', r'\s+do$', r'^do\s+',
+            r'\s+does\s+', r'\s+does$', r'^does\s+',
+            r'\s+did\s+', r'\s+did$', r'^did\s+',
+            r'\s+has\s+', r'\s+has$', r'^has\s+',
+            r'\s+have\s+', r'\s+have$', r'^have\s+',
+            r'\s+had\s+', r'\s+had$', r'^had\s+',
+            # Common scattered words
+            r'\s+one\s+', r'\s+one$', r'^one\s+',
+            r'\s+two\s+', r'\s+two$', r'^two\s+',
+            r'\s+will\s+', r'\s+will$', r'^will\s+',
+            r'\s+can\s+', r'\s+can$', r'^can\s+',
+            r'\s+may\s+', r'\s+may$', r'^may\s+',
+            r'\s+tell\s+', r'\s+tell$', r'^tell\s+',
+            r'\s+about\s+', r'\s+about$', r'^about\s+',
+            # Corrupted variations
+            r'\s+isं\s+', r'\s+isं$',
         ]
         
         result = text
