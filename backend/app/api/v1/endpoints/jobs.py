@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.workers.celery_app import celery_app
 from celery.result import AsyncResult
 from typing import Dict
+import os
 
 router = APIRouter()
 
@@ -28,11 +29,43 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
         # Check if job is in completed cache
         if job_id in jobs_db:
             return jobs_db[job_id]
+        
+        # Check if output file exists (job completed but not in cache)
+        output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.mp4")
+        if os.path.exists(output_file):
+            logger.info(f"Found completed job file for {job_id}")
+            response = JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.COMPLETED,
+                progress=100,
+                stage="Completed",
+                eta_seconds=0,
+                result_url=f"{settings.BACKEND_URL}/api/v1/results/{job_id}.mp4",
+            )
+            jobs_db[job_id] = response
+            return response
 
         # Query Celery task status
         task_result = AsyncResult(job_id, app=celery_app)
         
-        if task_result.state == "PENDING":
+        # Safely get task state
+        try:
+            task_state = task_result.state
+        except Exception:
+            # Task doesn't exist or can't get state
+            return JobStatusResponse(
+                job_id=job_id,
+                status=JobStatus.QUEUED,
+                progress=0,
+                stage="Status unavailable",
+                eta_seconds=None,
+            )
+        
+        # Check if task exists at all (PENDING could mean non-existent or queued)
+        # If PENDING and no output file, might be truly non-existent
+        if task_state == "PENDING":
+            # Try to check if task was ever registered
+            # PENDING is Celery's default state for unknown tasks
             return JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.QUEUED,
@@ -40,8 +73,11 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 stage="Waiting in queue",
                 eta_seconds=None,
             )
-        elif task_result.state == "PROCESSING":
-            meta = task_result.info or {}
+        elif task_state == "PROCESSING":
+            try:
+                meta = task_result.info or {}
+            except Exception:
+                meta = {}
             return JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.PROCESSING,
@@ -49,8 +85,11 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 stage=meta.get("stage", "Processing"),
                 eta_seconds=None,
             )
-        elif task_result.state == "SUCCESS":
-            result = task_result.result or {}
+        elif task_state == "SUCCESS":
+            try:
+                result = task_result.result or {}
+            except Exception:
+                result = {}
             response = JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.COMPLETED,
@@ -62,8 +101,11 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
             # Cache completed job
             jobs_db[job_id] = response
             return response
-        elif task_result.state == "FAILURE":
-            error_info = str(task_result.info) if task_result.info else "Unknown error"
+        elif task_state == "FAILURE":
+            try:
+                error_info = str(task_result.info) if task_result.info else "Unknown error"
+            except Exception:
+                error_info = "Task failed with unparseable error"
             return JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.FAILED,
@@ -78,13 +120,17 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 job_id=job_id,
                 status=JobStatus.QUEUED,
                 progress=0,
-                stage=f"State: {task_result.state}",
+                stage=f"State: {task_state}",
                 eta_seconds=None,
             )
 
     except Exception as e:
-        logger.error(f"Error retrieving job status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        try:
+            error_message = str(e)
+        except Exception:
+            error_message = f"{type(e).__name__}: Unable to get error details"
+        logger.error(f"Error retrieving job status for {job_id}: {error_message}")
+        raise HTTPException(status_code=500, detail=error_message)
 
 
 @router.delete("/{job_id}")
