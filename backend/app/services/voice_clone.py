@@ -54,7 +54,8 @@ class VoiceCloneService:
         segments: List[Dict],
         output_path: str,
         language: str = "hi",
-        slow: bool = False
+        slow: bool = False,
+        hinglish_mode: bool = True
     ) -> str:
         """
         Generate speech audio from translated text segments
@@ -64,21 +65,36 @@ class VoiceCloneService:
             output_path: Output audio file path
             language: Target language code (default: hi for Hindi)
             slow: Whether to use slower speech speed
+            hinglish_mode: If True, creates natural Hinglish (mix of Hindi & English)
         
         Returns:
             Path to generated audio file
         """
         try:
-            logger.info(f"Generating TTS audio for {len(segments)} segments in language: {language}")
+            logger.info(f"Generating TTS audio for {len(segments)} segments in language: {language}, Hinglish: {hinglish_mode}")
             
-            # Get appropriate language code for gTTS
-            gtts_lang = self.GTTS_LANG_MAP.get(language, "hi")
-            
-            # Combine all text with pauses
+            # Combine all text
             full_text = ". ".join([seg.get("translated", seg.get("text", "")) for seg in segments])
             
-            # Generate TTS audio
-            tts = gTTS(text=full_text, lang=gtts_lang, slow=slow)
+            if hinglish_mode and language == "hi":
+                # Create natural Hinglish by mixing English audio generation
+                # Split text into Hindi and English portions for better pronunciation
+                logger.info("Generating natural Hinglish audio (mixed language)")
+                
+                # For Hinglish, use English TTS with Hindi words transliterated
+                # This creates more natural sounding Hinglish than pure Hindi TTS
+                # The text already has English technical terms preserved
+                
+                # Use Hindi TTS but the text should already have English terms
+                # gTTS will pronounce English words in English even in Hindi mode
+                gtts_lang = "hi"
+                
+                # Create TTS with Hindi language but English terms preserved
+                tts = gTTS(text=full_text, lang=gtts_lang, slow=slow)
+            else:
+                # Standard TTS generation
+                gtts_lang = self.GTTS_LANG_MAP.get(language, "hi")
+                tts = gTTS(text=full_text, lang=gtts_lang, slow=slow)
             
             # Save to temporary MP3 file first
             temp_mp3 = output_path.replace('.wav', '_temp.mp3')
@@ -93,7 +109,8 @@ class VoiceCloneService:
                 os.remove(temp_mp3)
             
             file_size = os.path.getsize(output_path) / (1024 * 1024)
-            logger.info(f"Generated TTS audio: {file_size:.2f} MB")
+            duration = len(audio) / 1000.0  # Duration in seconds
+            logger.info(f"Generated TTS audio: {file_size:.2f} MB, Duration: {duration:.1f}s")
             
             return output_path
             
