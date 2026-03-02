@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import axios from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -166,10 +167,16 @@ export default function Home() {
         {/* Success Display */}
         {jobId && (
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="font-semibold text-green-800">Job Created Successfully!</p>
-            <p className="text-sm text-green-700 mt-1">Job ID: {jobId}</p>
+            <p className="font-semibold text-green-800">✅ Job Created Successfully!</p>
+            <p className="text-sm text-green-700 mt-1 font-mono">Job ID: {jobId}</p>
             <p className="text-sm text-green-600 mt-2">
-              Your video is being processed. Check the status in the Jobs page.
+              Your video is being processed.{' '}
+              <Link 
+                href={`/jobs?id=${jobId}`} 
+                className="font-semibold underline hover:text-green-800"
+              >
+                Check status →
+              </Link>
             </p>
           </div>
         )}
