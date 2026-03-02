@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <nav className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-4 shadow-lg">
           <div className="container mx-auto flex justify-between items-center">
             <div>

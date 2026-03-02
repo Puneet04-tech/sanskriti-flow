@@ -12,12 +12,6 @@ function JobsContent() {
   const [searchResult, setSearchResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
-
-  // Handle client-side mounting
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const fetchJobStatus = useCallback(async (id: string) => {
     setLoading(true)
@@ -40,14 +34,13 @@ function JobsContent() {
 
   // Auto-load job if ID in URL
   useEffect(() => {
-    if (!mounted) return
     const idFromUrl = searchParams.get('id')
     if (idFromUrl) {
       setJobId(idFromUrl)
       // Trigger search automatically
       fetchJobStatus(idFromUrl)
     }
-  }, [searchParams, mounted, fetchJobStatus])
+  }, [searchParams, fetchJobStatus])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,9 +67,8 @@ function JobsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white" suppressHydrationWarning>
+      <div className="container mx-auto px-4 py-8">{/* Header */}
         <div className="text-center mb-12">
           <Link 
             href="/"
