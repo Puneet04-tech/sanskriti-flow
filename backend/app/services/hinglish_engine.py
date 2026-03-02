@@ -89,6 +89,25 @@ class NeuralHinglishEngine:
         "byte", "kilobyte", "megabyte", "gigabyte", "terabyte", "bit", "pixel",
         "hertz", "megahertz", "gigahertz", "second", "millisecond", "nanosecond",
         
+        # Numbers & Quantities (CRITICAL - must stay in English)
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+        "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
+        "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million",
+        "billion", "trillion", "first", "second", "third", "fourth", "fifth",
+        "percent", "percentage", "ratio", "fraction", "decimal", "integer",
+        
+        # Common English words (should NEVER be translated)
+        "the", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+        "do", "does", "did", "will", "would", "should", "could", "can", "may", "might",
+        "this", "that", "these", "those", "and", "or", "but", "if", "then", "else",
+        "for", "with", "about", "from", "into", "through", "during", "before", "after",
+        "above", "below", "between", "under", "over", "just", "now", "here", "there",
+        "when", "where", "why", "how", "what", "which", "who", "whom", "whose",
+        "all", "both", "each", "few", "more", "most", "other", "some", "such",
+        "very", "much", "many", "less", "greater", "equal", "same", "different",
+        "plus", "minus", "times", "divide", "equals", "than", "less than", "greater than",
+        
         # Popular Brands/Products (should stay as-is)
         "google", "facebook", "microsoft", "apple", "amazon", "netflix", "youtube",
         "windows", "linux", "android", "ios", "chrome", "firefox", "safari",
@@ -137,6 +156,61 @@ class NeuralHinglishEngine:
         "कॉन्फ़िगर": "configure",  # Keep in English
         "ऑनलाइन": "online",  # Keep in English
         "ऑफलाइन": "offline",  # Keep in English
+        
+        # Numbers in Hindi (CRITICAL - replace with English)
+        "शून्य": "zero",
+        "एक": "one",
+        "दो": "two",
+        "तीन": "three",
+        "चार": "four",
+        "पाँच": "five",
+        "छह": "six",
+        "सात": "seven",
+        "आठ": "eight",
+        "नौ": "nine",
+        "दस": "ten",
+        "बीस": "twenty",
+        "तीस": "thirty",
+        "चालीस": "forty",
+        "पचास": "fifty",
+        "साठ": "sixty",
+        "सत्तर": "seventy",
+        "अस्सी": "eighty",
+        "नब्बे": "ninety",
+        "सौ": "hundred",
+        "हज़ार": "thousand",
+        "लाख": "lakh",
+        "करोड़": "crore",
+        "मिलियन": "million",
+        "बिलियन": "billion",
+        
+        # Common verbs/words that should be in English
+        "बनाना": "create",
+        "बनाएं": "create",
+        "बनाता": "creates",
+        "बनाती": "creates",
+        "करना": "do",
+        "करें": "do",
+        "करता": "does",
+        "करती": "does",
+        "होना": "be",
+        "है": "is",
+        "हैं": "are",
+        "था": "was",
+        "थी": "was",
+        "थे": "were",
+        "देखना": "see",
+        "देखें": "see",
+        "सीखना": "learn",
+        "सीखें": "learn",
+        "समझना": "understand",
+        "समझें": "understand",
+        "जानना": "know",
+        "जानें": "know",
+        "बताना": "tell",
+        "बताएं": "tell",
+        "दिखाना": "show",
+        "दिखाएं": "show",
     }
 
     def __init__(self):
