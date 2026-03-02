@@ -59,11 +59,14 @@ async def create_localization_job(request: LocalizationRequest):
             "preserve_technical_terms": True,
         }
 
+        # Convert URL to string for JSON serialization
+        video_url_str = str(request.video_url) if request.video_url else request.video_file
+
         # Queue job to Celery worker
         task = localize_video_task.apply_async(
             args=[
                 job_id,
-                request.video_url,
+                video_url_str,
                 request.target_language.value,
                 options,
             ],
