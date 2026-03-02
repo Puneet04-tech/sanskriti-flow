@@ -242,7 +242,7 @@ function JobsContent() {
               </li>
             </ol>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -257,11 +257,5 @@ export default function JobsPage() {
     }>
       <JobsContent />
     </Suspense>
-  )
-}
-          </div>
-        )}
-      </div>
-    </div>
   )
 }
