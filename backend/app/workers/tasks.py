@@ -273,10 +273,6 @@ def localize_video_task(
         if options.get("enable_vision_sync", False):
             logger.warning(f"[{job_id}] Vision-sync overlays are temporarily disabled (feature under development)")
             # Disabled - feature not fully implemented yet
-            # self.update_state(state="PROCESSING", meta={"stage": "Adding overlays", "progress": 85})
-            
-            if False:  # Temporarily disabled
-                try:
                 # This would use Moondream2 for vision analysis in production
                 logger.info(f"[{job_id}] Vision sync would be applied here")
             except Exception as e:
