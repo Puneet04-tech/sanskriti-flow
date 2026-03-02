@@ -319,7 +319,11 @@ def localize_video_task(
                         '-map', '[v]',  # Use video with subtitles
                         '-map', '1:a',  # Use Hindi audio (from second input)
                         '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                        '-pix_fmt', 'yuv420p',  # Maximum compatibility for all players
                         '-c:a', 'aac', '-b:a', '192k',  # Encode Hindi audio
+                        '-ar', '44100',  # Standard audio sample rate
+                        '-ac', '2',  # Stereo audio
+                        '-movflags', '+faststart',  # Enable streaming/fast playback
                         '-shortest',  # Match shortest stream
                         output_path
                     ]
@@ -331,6 +335,8 @@ def localize_video_task(
                         '-i', video_input_path,
                         '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4'",
                         '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                        '-pix_fmt', 'yuv420p',  # Maximum compatibility
+                        '-movflags', '+faststart',
                         '-c:a', 'copy',  # Copy original audio
                         output_path
                     ]
