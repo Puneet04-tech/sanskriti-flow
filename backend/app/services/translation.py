@@ -70,6 +70,133 @@ class TranslationService:
             logger.error(f"Failed to load translation model: {str(e)}")
             raise
 
+    def translate_span_based(
+        self,
+        text: str,
+        target_lang: str,
+    ) -> str:
+        """
+        Translate using span-based approach: preserve technical terms by NOT translating them
+        
+        Args:
+            text: Input text
+            target_lang: Target language code
+        
+        Returns:
+            Hinglish text with technical terms preserved
+        """
+        try:
+            # Get technical terms and their positions
+            terms = self.hinglish_engine.identify_technical_terms(text)
+            
+            if not terms:
+                # No technical terms, translate normally
+                return self._translate_text(text, target_lang)
+            
+            # Split text into spans: [(start, end, is_technical, text)]
+            spans = []
+            last_end = 0
+            
+            for term, start, end in terms:
+                # Add non-technical text before this term
+                if start > last_end:
+                    spans.append((last_end, start, False, text[last_end:start]))
+                
+                # Add technical term (keep as-is)
+                spans.append((start, end, True, text[start:end]))
+                last_end = end
+            
+            # Add remaining text
+            if last_end < len(text):
+                spans.append((last_end, len(text), False, text[last_end:]))
+            
+            # Translate only non-technical spans
+            translated_parts = []
+            for start, end, is_technical, span_text in spans:
+                if is_technical or len(span_text.strip()) == 0:
+                    # Keep technical terms and whitespace as-is
+                    translated_parts.append(span_text)
+                else:
+                    # Translate non-technical text
+                    translated = self._translate_text(span_text.strip(), target_lang)
+                    # Preserve original spacing
+                    if span_text.startswith(' '):
+                        translated = ' ' + translated
+                    if span_text.endswith(' '):
+                        translated = translated + ' '
+                    translated_parts.append(translated)
+            
+            result = ''.join(translated_parts)
+            
+            # Apply Hindi simplification
+            result = self.hinglish_engine.simplify_hindi(result)
+            
+            logger.info(f"Span-based translation: {text[:50]}... -> {result[:50]}...")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Span-based translation failed: {str(e)}, falling back to normal")
+            return self._translate_text(text, target_lang)
+    
+    def _translate_text(
+        self,
+        text: str,
+        target_lang: str,
+    ) -> str:
+        """
+        Internal method to translate text without term preservation
+        
+        Args:
+            text: Input text
+            target_lang: Target language code
+        
+        Returns:
+            Translated text
+        """
+        if len(text.strip()) == 0:
+            return text
+        
+        # Tokenize
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512,
+        ).to(self.device)
+        
+        # Generate translation
+        if self.is_opus_model:
+            generated_tokens = self.model.generate(
+                **inputs,
+                max_length=512,
+                num_beams=4,
+                early_stopping=True,
+            )
+        else:
+            src_code = self.LANGUAGE_CODES.get("en", "eng_Latn")
+            tgt_code = self.LANGUAGE_CODES.get(target_lang)
+            
+            if not tgt_code:
+                raise ValueError(f"Unsupported target language: {target_lang}")
+            
+            self.tokenizer.src_lang = src_code
+            generated_tokens = self.model.generate(
+                **inputs,
+                forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
+                max_length=512,
+                num_beams=5,
+                length_penalty=1.0,
+            )
+        
+        # Decode
+        translation = self.tokenizer.batch_decode(
+            generated_tokens,
+            skip_special_tokens=True
+        )[0]
+        
+        return translation
+    
     def translate(
         self,
         text: str,
@@ -90,58 +217,12 @@ class TranslationService:
             Translated text
         """
         try:
-            # Mark technical terms if preservation is enabled
             if preserve_technical:
-                text = self.hinglish_engine.mark_protected_terms(text)
-            
-            # Tokenize
-            inputs = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=512,
-            ).to(self.device)
-            
-            # Generate translation
-            if self.is_opus_model:
-                # Simpler generation for opus models (no language codes needed)
-                generated_tokens = self.model.generate(
-                    **inputs,
-                    max_length=512,
-                    num_beams=4,
-                    early_stopping=True,
-                )
+                # Use span-based translation to preserve technical terms
+                return self.translate_span_based(text, target_lang)
             else:
-                # NLLB-style generation with language codes
-                src_code = self.LANGUAGE_CODES.get(source_lang, "eng_Latn")
-                tgt_code = self.LANGUAGE_CODES.get(target_lang)
-                
-                if not tgt_code:
-                    raise ValueError(f"Unsupported target language: {target_lang}")
-                
-                self.tokenizer.src_lang = src_code
-                generated_tokens = self.model.generate(
-                    **inputs,
-                    forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
-                    max_length=512,
-                    num_beams=5,
-                    length_penalty=1.0,
-                )
-            
-            # Decode
-            translation = self.tokenizer.batch_decode(
-                generated_tokens,
-                skip_special_tokens=True
-            )[0]
-            
-            # Unmark technical terms
-            if preserve_technical:
-                translation = self.hinglish_engine.unmark_protected_terms(translation)
-            
-            logger.info(f"Translated: {text[:50]}... -> {translation[:50]}...")
-            
-            return translation
+                # Normal translation without preservation
+                return self._translate_text(text, target_lang)
             
         except Exception as e:
             logger.error(f"Translation failed: {str(e)}")
