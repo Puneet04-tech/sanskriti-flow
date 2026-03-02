@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -19,7 +19,7 @@ function JobsContent() {
     setMounted(true)
   }, [])
 
-  const fetchJobStatus = async (id: string) => {
+  const fetchJobStatus = useCallback(async (id: string) => {
     setLoading(true)
     setError('')
     setSearchResult(null)
@@ -36,7 +36,7 @@ function JobsContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Auto-load job if ID in URL
   useEffect(() => {
@@ -47,7 +47,7 @@ function JobsContent() {
       // Trigger search automatically
       fetchJobStatus(idFromUrl)
     }
-  }, [searchParams, mounted])
+  }, [searchParams, mounted, fetchJobStatus])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
