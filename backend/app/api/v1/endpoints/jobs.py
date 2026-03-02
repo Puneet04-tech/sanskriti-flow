@@ -34,6 +34,19 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
         output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.mp4")
         if os.path.exists(output_file):
             logger.info(f"Found completed job file for {job_id}")
+            
+            # Try to retrieve quizzes and metadata from Celery result
+            quizzes = []
+            metadata = {}
+            try:
+                task_result = AsyncResult(job_id, app=celery_app)
+                if task_result.state == "SUCCESS":
+                    result = task_result.result or {}
+                    quizzes = result.get("quizzes", [])
+                    metadata = result.get("metadata", {})
+            except Exception as e:
+                logger.warning(f"Could not retrieve quiz data for {job_id}: {e}")
+            
             response = JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.COMPLETED,
@@ -41,6 +54,8 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 stage="Completed",
                 eta_seconds=0,
                 result_url=f"{settings.BACKEND_URL}/api/v1/results/{job_id}.mp4",
+                quizzes=quizzes,
+                metadata=metadata,
             )
             jobs_db[job_id] = response
             return response
@@ -90,6 +105,11 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 result = task_result.result or {}
             except Exception:
                 result = {}
+            
+            # Extract quizzes and metadata from task result
+            quizzes = result.get("quizzes", [])
+            metadata = result.get("metadata", {})
+            
             response = JobStatusResponse(
                 job_id=job_id,
                 status=JobStatus.COMPLETED,
@@ -97,6 +117,8 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                 stage="Completed",
                 eta_seconds=0,
                 result_url=f"{settings.BACKEND_URL}/api/v1/results/{job_id}.mp4",
+                quizzes=quizzes,
+                metadata=metadata,
             )
             # Cache completed job
             jobs_db[job_id] = response
