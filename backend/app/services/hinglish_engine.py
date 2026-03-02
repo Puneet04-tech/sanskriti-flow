@@ -89,24 +89,14 @@ class NeuralHinglishEngine:
         "byte", "kilobyte", "megabyte", "gigabyte", "terabyte", "bit", "pixel",
         "hertz", "megahertz", "gigahertz", "second", "millisecond", "nanosecond",
         
-        # Numbers & Quantities (CRITICAL - must stay in English)
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-        "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
-        "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million",
-        "billion", "trillion", "first", "second", "third", "fourth", "fifth",
+        # Numbers & Quantities (only large numbers and technical contexts)
+        # Note: Basic numbers (one, two, three) should be translated for natural grammar
+        # Only preserve when part of technical expressions
+        "zero", "hundred", "thousand", "million", "billion", "trillion",
         "percent", "percentage", "ratio", "fraction", "decimal", "integer",
         
-        # Common English words (should NEVER be translated)
-        "the", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
-        "do", "does", "did", "will", "would", "should", "could", "can", "may", "might",
-        "this", "that", "these", "those", "and", "or", "but", "if", "then", "else",
-        "for", "with", "about", "from", "into", "through", "during", "before", "after",
-        "above", "below", "between", "under", "over", "just", "now", "here", "there",
-        "when", "where", "why", "how", "what", "which", "who", "whom", "whose",
-        "all", "both", "each", "few", "more", "most", "other", "some", "such",
-        "very", "much", "many", "less", "greater", "equal", "same", "different",
-        "plus", "minus", "times", "divide", "equals", "than", "less than", "greater than",
+        # Comparison & Math operators (technical context only)
+        "less than", "greater than", "equals", "plus", "minus", "times", "divide",
         
         # Popular Brands/Products (should stay as-is)
         "google", "facebook", "microsoft", "apple", "amazon", "netflix", "youtube",
