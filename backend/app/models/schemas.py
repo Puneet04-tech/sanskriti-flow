@@ -31,6 +31,7 @@ class LocalizationRequest(BaseModel):
     enable_quiz: bool = Field(True, description="Generate interactive quizzes")
     enable_vision_sync: bool = Field(True, description="Add vision-sync overlays")
     enable_lip_sync: bool = Field(False, description="Apply lip-sync (GPU intensive)")
+    enable_voice_clone: bool = Field(False, description="Clone original speaker's voice")
     enable_swar: bool = Field(False, description="Add assistive audio for visually impaired")
     enable_drishti: bool = Field(False, description="Enable rural/edge mode")
     preserve_technical_terms: bool = Field(True, description="Keep technical terms in English")
