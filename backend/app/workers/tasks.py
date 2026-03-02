@@ -7,8 +7,8 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.services.transcription import get_transcription_service
 from app.services.translation import get_translation_service
-from app.services.quiz_generator import get_quiz_service
-from app.services.vision_sync import get_vision_sync_service
+from app.services.simple_quiz_generator import get_simple_quiz_generator
+from app.services.simple_ar_labeling import get_simple_ar_service
 from app.services.voice_clone import get_voice_clone_service
 from app.services.lip_sync import get_lip_sync_service
 from app.utils.video_utils import VideoProcessor
@@ -42,13 +42,21 @@ class LocalizationTask(Task):
     @property
     def quiz(self):
         if self._quiz is None:
-            self._quiz = get_quiz_service()
+            try:
+                self._quiz = get_simple_quiz_generator()
+            except Exception as e:
+                logger.warning(f"Quiz service init failed: {e}")
+                self._quiz = None
         return self._quiz
 
     @property
     def vision(self):
         if self._vision is None:
-            self._vision = get_vision_sync_service()
+            try:
+                self._vision = get_simple_ar_service()
+            except Exception as e:
+                logger.warning(f"AR service init failed: {e}")
+                self._vision = None
         return self._vision
     
     def _format_srt_time(self, seconds: float) -> str:
@@ -257,21 +265,61 @@ def localize_video_task(
             logger.warning(f"[{job_id}] Hindi audio generation failed: {e}")
             hindi_audio_path = None
 
-        # Stage 6: Generate quiz questions (optional) - TEMPORARILY DISABLED
+        # Stage 6: Generate quiz questions (optional) - NOW ENABLED WITH SIMPLE GENERATOR
         quizzes = []
         if options.get("enable_quiz", False):
-            logger.warning(f"[{job_id}] Quiz generation is temporarily disabled (needs llama-cpp-python with C++ compiler)")
-            # Disabled until llama-cpp-python is properly installed
-            # try:
-            #     full_text = " ".join([seg["translated"] for seg in translated_segments])
-            #     quizzes = self.quiz.generate_quiz(full_text, num_questions=3)
-            # except Exception as e:
-            #     logger.warning(f"[{job_id}] Quiz generation failed: {e}")
-            quizzes = []
+            logger.info(f"[{job_id}] Stage 6: Generating quiz questions")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 70})
+            
+            try:
+                # Combine all translated text
+                full_text = " ".join([seg.get("original", seg.get("text", "")) for seg in translated_segments])
+                
+                # Use simple quiz generator (no LLM required)
+                if self.quiz:
+                    quizzes = self.quiz.generate_quiz(full_text, num_questions=3, target_language=target_language)
+                    logger.info(f"[{job_id}] Generated {len(quizzes)} quiz questions")
+                else:
+                    logger.warning(f"[{job_id}] Quiz generator not available")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] Quiz generation failed: {e}")
+                quizzes = []
 
-        # Stage 7: Add vision-sync overlays (optional) - TEMPORARILY DISABLED
+        # Stage 7: Add vision-sync overlays (optional) - NOW ENABLED WITH SIMPLE AR
         if options.get("enable_vision_sync", False):
-            logger.warning(f"[{job_id}] Vision-sync overlays are temporarily disabled (feature under development)")
+            logger.info(f"[{job_id}] Stage 7: Adding AR labels to video")
+            self.update_state(state="PROCESSING", meta={"stage": "Adding AR labels", "progress": 85})
+            
+            try:
+                if self.vision:
+                    # Generate label data from translated segments
+                    from app.services.hinglish_engine import NeuralHinglishEngine
+                    hinglish_engine = NeuralHinglishEngine()
+                    label_data = self.vision.generate_label_data(translated_segments, hinglish_engine)
+                    
+                    if label_data:
+                        # Create temporary AR video (will be merged later)
+                        ar_video_path = os.path.join(job_dir, "ar_video.mp4")
+                        self.vision.process_video(
+                            video_input_path,
+                            ar_video_path,
+                            label_data,
+                            sample_rate=30  # Process every 30th frame for performance
+                        )
+                        
+                        # Use AR video as new input for final stage
+                        if os.path.exists(ar_video_path):
+                            video_input_path = ar_video_path
+                            logger.info(f"[{job_id}] AR labels added successfully")
+                    else:
+                        logger.warning(f"[{job_id}] No labels generated for AR")
+                else:
+                    logger.warning(f"[{job_id}] AR service not available")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] AR labeling failed: {e}")
+                # Continue with original video
 
 
         # Stage 8: Finalize - Merge Hindi audio and add subtitles to video
