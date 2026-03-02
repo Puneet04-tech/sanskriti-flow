@@ -48,7 +48,10 @@ class TranslationService:
         self.model_name = model_name or settings.NLLB_MODEL
         self.device = "cuda" if settings.USE_GPU and torch.cuda.is_available() else "cpu"
         
-        logger.info(f"Initializing NLLB model: {self.model_name} on {self.device}")
+        # Check if using Helsinki-NLP opus model (simpler, lighter)
+        self.is_opus_model = "Helsinki-NLP" in self.model_name or "opus-mt" in self.model_name
+        
+        logger.info(f"Initializing translation model: {self.model_name} on {self.device}")
         
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -58,13 +61,13 @@ class TranslationService:
             if settings.USE_GPU:
                 self.model.half()  # Use FP16 for faster inference
             
-            logger.info("NLLB model loaded successfully")
+            logger.info("Translation model loaded successfully")
             
             # Initialize Hinglish Engine
             self.hinglish_engine = get_hinglish_engine()
             
         except Exception as e:
-            logger.error(f"Failed to load NLLB model: {str(e)}")
+            logger.error(f"Failed to load translation model: {str(e)}")
             raise
 
     def translate(
@@ -87,19 +90,9 @@ class TranslationService:
             Translated text
         """
         try:
-            # Convert language codes
-            src_code = self.LANGUAGE_CODES.get(source_lang, "eng_Latn")
-            tgt_code = self.LANGUAGE_CODES.get(target_lang)
-            
-            if not tgt_code:
-                raise ValueError(f"Unsupported target language: {target_lang}")
-            
             # Mark technical terms if preservation is enabled
             if preserve_technical:
                 text = self.hinglish_engine.mark_protected_terms(text)
-            
-            # Set source language
-            self.tokenizer.src_lang = src_code
             
             # Tokenize
             inputs = self.tokenizer(
@@ -111,13 +104,30 @@ class TranslationService:
             ).to(self.device)
             
             # Generate translation
-            generated_tokens = self.model.generate(
-                **inputs,
-                forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
-                max_length=512,
-                num_beams=5,
-                length_penalty=1.0,
-            )
+            if self.is_opus_model:
+                # Simpler generation for opus models (no language codes needed)
+                generated_tokens = self.model.generate(
+                    **inputs,
+                    max_length=512,
+                    num_beams=4,
+                    early_stopping=True,
+                )
+            else:
+                # NLLB-style generation with language codes
+                src_code = self.LANGUAGE_CODES.get(source_lang, "eng_Latn")
+                tgt_code = self.LANGUAGE_CODES.get(target_lang)
+                
+                if not tgt_code:
+                    raise ValueError(f"Unsupported target language: {target_lang}")
+                
+                self.tokenizer.src_lang = src_code
+                generated_tokens = self.model.generate(
+                    **inputs,
+                    forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
+                    max_length=512,
+                    num_beams=5,
+                    length_penalty=1.0,
+                )
             
             # Decode
             translation = self.tokenizer.batch_decode(

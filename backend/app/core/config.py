@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Model Paths
     WHISPER_MODEL: str = "base"
-    NLLB_MODEL: str = "facebook/nllb-200-distilled-600M"
+    NLLB_MODEL: str = "Helsinki-NLP/opus-mt-en-hi"  # Lighter model for CPU (280MB vs 600MB)
     LLAMA_MODEL: str = "models/llama-3.1-8b-instruct.gguf"
     MOONDREAM_MODEL: str = "vikhyatk/moondream2"
 
