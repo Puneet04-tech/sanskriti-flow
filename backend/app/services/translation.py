@@ -76,73 +76,93 @@ class TranslationService:
         target_lang: str,
     ) -> str:
         """
-        Translate using span-based approach: preserve technical terms by NOT translating them
+        Translate with word-level English preservation for natural Hinglish
+        
+        Strategy:
+        1. Identify words to keep in English (technical + common)
+        2. Build spans: English words + spaces to translate
+        3. Translate only non-English spans
+        4. Merge spans back together
         
         Args:
-            text: Input text
-            target_lang: Target language code
+            text: English text to translate
+            target_lang: Target language code (e.g., 'hi')
         
         Returns:
-            Hinglish text with technical terms preserved
+            Hinglish text with English words preserved
         """
+        import re
+        
         try:
-            # Get technical terms and their positions
+            # Step 1: Identify all words to keep in English
+            words_to_keep = set()
+            
+            # Get technical terms from engine
             terms = self.hinglish_engine.identify_technical_terms(text)
+            for term, _, _ in terms:
+                # Add each word in the technical term
+                for word in term.split():
+                    if len(word) > 1:
+                        words_to_keep.add(word.lower())
             
-            if not terms:
-                # No technical terms, translate normally
-                return self._translate_text(text, target_lang)
+            # Also check against TECHNICAL_TERMS list
+            text_lower = text.lower()
+            for tech_term in self.hinglish_engine.TECHNICAL_TERMS:
+                if tech_term in text_lower:
+                    for word in tech_term.split():
+                        if len(word) > 1:
+                            words_to_keep.add(word.lower())
             
-            # Split text into spans: [(start, end, is_technical, text)]
-            spans = []
-            last_end = 0
+            # Step 2: Build word-level spans
+            words = re.findall(r'\b\w+\b|[^\w\s]', text)  # Extract words and punctuation
+            spans = []  # List of (text, keep_english)
+            current_hindi_span = []
             
-            for term, start, end in terms:
-                # Add non-technical text before this term
-                if start > last_end:
-                    spans.append((last_end, start, False, text[last_end:start]))
+            for word in words:
+                word_clean = re.sub(r'[^a-zA-Z0-9]', '', word).lower()
                 
-                # Add technical term (keep as-is)
-                spans.append((start, end, True, text[start:end]))
-                last_end = end
-            
-            # Add remaining text
-            if last_end < len(text):
-                spans.append((last_end, len(text), False, text[last_end:]))
-            
-            # Translate only non-technical spans
-            translated_parts = []
-            for start, end, is_technical, span_text in spans:
-                if is_technical:
-                    # Keep technical terms as-is
-                    translated_parts.append(span_text)
-                elif len(span_text.strip()) == 0:
-                    # Keep whitespace/punctuation as-is
-                    translated_parts.append(span_text)
-                else:
-                    # Translate non-technical text
-                    # Detect leading/trailing whitespace
-                    leading_space = span_text[:len(span_text) - len(span_text.lstrip())]
-                    trailing_space = span_text[len(span_text.rstrip()):]
-                    clean_text = span_text.strip()
+                # Check if this word should stay in English
+                if word_clean in words_to_keep or len(word_clean) == 0:
+                    # First, flush any accumulated Hindi span
+                    if current_hindi_span:
+                        hindi_text = ' '.join(current_hindi_span)
+                        spans.append((hindi_text, False))  # Needs translation
+                        current_hindi_span = []
                     
-                    if clean_text:
-                        translated = self._translate_text(clean_text, target_lang)
-                        # Reassemble with original spacing
-                        translated_parts.append(leading_space + translated + trailing_space)
-                    else:
-                        translated_parts.append(span_text)
+                    # Add English word
+                    spans.append((word, True))  # Keep as-is
+                else:
+                    # Accumulate for Hindi translation
+                    current_hindi_span.append(word)
             
-            result = ''.join(translated_parts)
+            # Flush remaining Hindi span
+            if current_hindi_span:
+                hindi_text = ' '.join(current_hindi_span)
+                spans.append((hindi_text, False))
             
-            # Apply Hindi simplification
-            result = self.hinglish_engine.simplify_hindi(result)
+            # Step 3: Translate non-English spans
+            result_parts = []
+            for text_part, keep_english in spans:
+                if keep_english:
+                    result_parts.append(text_part)
+                else:
+                    # Translate this span to Hindi
+                    if text_part.strip():
+                        translated = self._translate_text(text_part, target_lang)
+                        translated = self.hinglish_engine.simplify_hindi(translated)
+                        result_parts.append(translated)
             
-            logger.info(f"Span-based translation: {text[:50]}... -> {result[:50]}...")
+            # Step 4: Merge with proper spacing
+            result = ' '.join(result_parts)
+            result = re.sub(r'\s+([.,!?;:])', r'\1', result)  # Fix punctuation spacing
+            result = re.sub(r'\s+', ' ', result).strip()
+            
+            logger.info(f"Hinglish translation: {text[:40]}... -> {result[:40]}...")
+            
             return result
             
         except Exception as e:
-            logger.error(f"Span-based translation failed: {str(e)}, falling back to normal")
+            logger.error(f"Hinglish translation failed: {str(e)}, falling back to normal")
             return self._translate_text(text, target_lang)
     
     def _translate_text(
