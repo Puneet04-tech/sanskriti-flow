@@ -101,15 +101,40 @@ def localize_video_task(
         logger.info(f"[{job_id}] Stage 1: Downloading video from {video_path}")
         self.update_state(state="PROCESSING", meta={"stage": "Downloading video", "progress": 5})
         
+        download_success = False
         try:
-            response = requests.get(video_path, stream=True, timeout=300)
+            response = requests.get(video_path, stream=True, timeout=300, headers={'User-Agent': 'Mozilla/5.0'})
             response.raise_for_status()
+            
+            # Download with progress tracking
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
             with open(video_input_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            logger.info(f"[{job_id}] Downloaded video: {os.path.getsize(video_input_path)} bytes")
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+            
+            file_size = os.path.getsize(video_input_path)
+            logger.info(f"[{job_id}] Downloaded video: {file_size} bytes")
+            
+            # Validate the downloaded video with ffprobe
+            try:
+                probe_result = subprocess.run(
+                    ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
+                    capture_output=True, timeout=10, text=True, check=True
+                )
+                duration = float(probe_result.stdout.strip())
+                logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
+                download_success = True
+            except Exception as probe_error:
+                logger.warning(f"[{job_id}] Video validation failed: {probe_error}. File might be corrupted.")
+                
         except Exception as e:
-            logger.warning(f"[{job_id}] Video download failed: {e}. Using sample video.")
+            logger.warning(f"[{job_id}] Video download failed: {e}")
+        
+        if not download_success:
+            logger.info(f"[{job_id}] Using sample video as fallback")
             # Generate a sample video as fallback
             subprocess.run([
                 'ffmpeg', '-y', '-f', 'lavfi', '-i', 'testsrc=duration=10:size=1280x720:rate=25',
