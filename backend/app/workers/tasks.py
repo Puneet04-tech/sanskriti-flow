@@ -139,12 +139,43 @@ def localize_video_task(
         # Create output directory if it doesn't exist
         os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         output_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.mp4")
+        output_path = os.path.normpath(output_path)  # Normalize path separators
         
-        # Create a dummy output file (in production this would be the processed video)
-        with open(output_path, 'w') as f:
-            f.write(f"Localized video for job {job_id}\n")
-            f.write(f"Target language: {target_language}\n")
-            f.write(f"Options: {options}\n")
+        # Generate a test video file using ffmpeg
+        try:
+            import subprocess
+            # Create simple 10-second video with purple gradient background
+            # Simple approach: just color + audio, no complex text rendering
+            cmd = [
+                'ffmpeg', '-y',
+                '-f', 'lavfi', '-i', 'color=c=#8B5CF6:s=1280x720:d=10:r=25',
+                '-f', 'lavfi', '-i', 'sine=frequency=440:duration=10',  # Simple tone
+                '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                '-c:a', 'aac', '-b:a', '128k',
+                '-t', '10',
+                output_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if result.returncode == 0:
+                logger.info(f"[{job_id}] Generated test video ({os.path.getsize(output_path)} bytes)")
+            else:
+                raise Exception(f"ffmpeg returned {result.returncode}")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Primary video generation failed: {e}")
+            # Fallback: Even simpler 5-second video
+            try:
+                subprocess.run([
+                    'ffmpeg', '-y',
+                    '-f', 'lavfi', '-i', 'color=c=green:s=640x480:d=5',
+                    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                    output_path
+                ], capture_output=True, timeout=10, check=True)
+                logger.info(f"[{job_id}] Created fallback video")
+            except Exception as fallback_error:
+                logger.error(f"[{job_id}] All video generation failed: {fallback_error}")
+                # Create empty file as last resort
+                with open(output_path, 'wb') as f:
+                    f.write(b'')
 
         logger.info(f"[{job_id}] Localization complete!")
 
