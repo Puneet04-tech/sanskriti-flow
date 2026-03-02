@@ -291,14 +291,14 @@ class NeuralHinglishEngine:
         """
         Mark technical terms with special tokens for translation
         
-        Uses email-like placeholder approach: Replace terms with XTERM0X, XTERM1X, etc.
-        This format is preserved by translation models (similar to how emails are preserved).
+        Uses email-like placeholder approach: Replace terms with TERM0@X, TERM1@X, etc.
+        Translation models NEVER translate email addresses, so this format is preserved.
         
         Args:
             text: Input text
         
         Returns:
-            Text with protected terms replaced by placeholders, and mapping dict
+            Text with protected terms replaced by email-like placeholders
         """
         terms = self.identify_technical_terms(text)
         
@@ -308,9 +308,9 @@ class NeuralHinglishEngine:
         # Process in reverse to maintain positions
         marked_text = text
         for idx, (term, start, end) in enumerate(reversed(terms)):
-            # Use format that won't be tokenized/translated: XTERM{number}X
-            placeholder = f"XTERM{idx}X"
-            self.term_mapping[placeholder] = term
+            # Use email-like format that translation models NEVER translate
+            placeholder = f"TERM{idx}@X"
+            self.term_mapping[placeholder.lower()] = term  # Store lowercase for case-insensitive matching
             marked_text = (
                 marked_text[:start] +
                 placeholder +
@@ -321,7 +321,7 @@ class NeuralHinglishEngine:
 
     def unmark_protected_terms(self, text: str) -> str:
         """
-        Restore original English terms from placeholders
+        Restore original English terms from email-like placeholders
         
         Args:
             text: Text with placeholders
@@ -329,24 +329,27 @@ class NeuralHinglishEngine:
         Returns:
             Clean text with original English terms restored
         """
-        # Restore terms from placeholders (XTERM0X, XTERM1X, etc.)
         result = text
+        
+        # Restore terms from email-like placeholders (case-insensitive)
         if hasattr(self, 'term_mapping'):
-            for placeholder, original_term in self.term_mapping.items():
-                # Replace placeholder with original term (case-insensitive)
-                result = re.sub(
-                    re.escape(placeholder),
-                    original_term,
-                    result,
-                    flags=re.IGNORECASE
-                )
+            # Find all email-like patterns in the text
+            import re
+            
+            def replace_placeholder(match):
+                placeholder = match.group(0).lower()  # Convert to lowercase
+                return self.term_mapping.get(placeholder, match.group(0))
+            
+            # Match TERM{number}@X (case-insensitive)
+            result = re.sub(r'term\d+@x', replace_placeholder, result, flags=re.IGNORECASE)
         
         # Also handle any leftover TECH tags from old approach
         result = re.sub(r'<TECH>(.*?)</TECH>', r'\1', result)
         
-        # Clean up any broken placeholders that might remain
-        # Remove patterns like [CER_0], [सीआईएम_0], etc.
+        # Clean up any broken placeholders from previous runs
+        # Remove patterns like [CER_0], [सीआईएम_0], XTERM0X, XERM0, etc.
         result = re.sub(r'\[[A-Za-z\u0900-\u097F_0-9]+\]', '', result)
+        result = re.sub(r'X[A-Z]{2,}\d+X?', '', result, flags=re.IGNORECASE)
         
         # Apply Hindi simplification - replace heavy words with English
         result = self.simplify_hindi(result)
