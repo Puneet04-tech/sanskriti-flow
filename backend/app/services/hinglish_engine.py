@@ -385,6 +385,50 @@ class NeuralHinglishEngine:
         for heavy_hindi, simple_english in self.HINDI_SIMPLIFICATION.items():
             result = result.replace(heavy_hindi, simple_english)
         
+        # Clean up garbage English words inserted by translation model
+        result = self.remove_translation_artifacts(result)
+        
+        return result
+    
+    def remove_translation_artifacts(self, text: str) -> str:
+        """
+        Remove isolated English helper words that translation model incorrectly inserts
+        
+        The Helsinki-NLP model sometimes inserts English words like "is", "be", "are" 
+        randomly into translated text. This function removes them.
+        
+        Args:
+            text: Translated text with possible artifacts
+        
+        Returns:
+            Cleaned text
+        """
+        import re
+        
+        # Pattern to match isolated English helper verbs/prepositions at word boundaries
+        # Only remove if they appear isolated (not part of technical terms)
+        artifact_patterns = [
+            r'\s+is\s+',      # " is "
+            r'\s+is$',        # " is" at end
+            r'^is\s+',        # "is " at start
+            r'\s+are\s+',     # " are "
+            r'\s+be\s+',      # " be "
+            r'\s+been\s+',    # " been "
+            r'\s+being\s+',   # " being "
+            r'\s+was\s+',     # " was "
+            r'\s+were\s+',    # " were "
+            r'\s+isं\s+',     # " isं " (corrupted)
+            r'\s+isं$',       # " isं" at end
+        ]
+        
+        result = text
+        for pattern in artifact_patterns:
+            # Replace with single space to maintain word spacing
+            result = re.sub(pattern, ' ', result, flags=re.IGNORECASE)
+        
+        # Clean up multiple spaces
+        result = re.sub(r'\s+', ' ', result).strip()
+        
         return result
 
     def create_hinglish_text(

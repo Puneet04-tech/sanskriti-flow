@@ -257,27 +257,26 @@ def localize_video_task(
             logger.warning(f"[{job_id}] Hindi audio generation failed: {e}")
             hindi_audio_path = None
 
-        # Stage 6: Generate quiz questions (optional)
+        # Stage 6: Generate quiz questions (optional) - TEMPORARILY DISABLED
         quizzes = []
         if options.get("enable_quiz", False):
-            logger.info(f"[{job_id}] Stage 6: Generating quiz questions")
-            self.update_state(state="PROCESSING", meta={"stage": "Generating quizzes", "progress": 70})
-            
-            try:
-                # Combine all translated text
-                full_text = " ".join([seg["translated"] for seg in translated_segments])
-                quizzes = self.quiz.generate_quiz(full_text, num_questions=3)
-                logger.info(f"[{job_id}] Generated {len(quizzes)} quiz questions")
-            except Exception as e:
-                logger.warning(f"[{job_id}] Quiz generation failed: {e}")
-                quizzes = []
+            logger.warning(f"[{job_id}] Quiz generation is temporarily disabled (needs llama-cpp-python with C++ compiler)")
+            # Disabled until llama-cpp-python is properly installed
+            # try:
+            #     full_text = " ".join([seg["translated"] for seg in translated_segments])
+            #     quizzes = self.quiz.generate_quiz(full_text, num_questions=3)
+            # except Exception as e:
+            #     logger.warning(f"[{job_id}] Quiz generation failed: {e}")
+            quizzes = []
 
-        # Stage 7: Add vision-sync overlays (optional)
+        # Stage 7: Add vision-sync overlays (optional) - TEMPORARILY DISABLED
         if options.get("enable_vision_sync", False):
-            logger.info(f"[{job_id}] Stage 7: Adding vision overlays")
-            self.update_state(state="PROCESSING", meta={"stage": "Adding overlays", "progress": 85})
+            logger.warning(f"[{job_id}] Vision-sync overlays are temporarily disabled (feature under development)")
+            # Disabled - feature not fully implemented yet
+            # self.update_state(state="PROCESSING", meta={"stage": "Adding overlays", "progress": 85})
             
-            try:
+            if False:  # Temporarily disabled
+                try:
                 # This would use Moondream2 for vision analysis in production
                 logger.info(f"[{job_id}] Vision sync would be applied here")
             except Exception as e:
