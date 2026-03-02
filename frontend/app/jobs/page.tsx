@@ -19,17 +19,6 @@ function JobsContent() {
     setMounted(true)
   }, [])
 
-  // Auto-load job if ID in URL
-  useEffect(() => {
-    if (!mounted) return
-    const idFromUrl = searchParams.get('id')
-    if (idFromUrl) {
-      setJobId(idFromUrl)
-      // Trigger search automatically
-      fetchJobStatus(idFromUrl)
-    }
-  }, [searchParams, mounted])
-
   const fetchJobStatus = async (id: string) => {
     setLoading(true)
     setError('')
@@ -48,6 +37,17 @@ function JobsContent() {
       setLoading(false)
     }
   }
+
+  // Auto-load job if ID in URL
+  useEffect(() => {
+    if (!mounted) return
+    const idFromUrl = searchParams.get('id')
+    if (idFromUrl) {
+      setJobId(idFromUrl)
+      // Trigger search automatically
+      fetchJobStatus(idFromUrl)
+    }
+  }, [searchParams, mounted])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
