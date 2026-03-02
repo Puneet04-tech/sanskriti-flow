@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # GPU
     CUDA_VISIBLE_DEVICES: str = "0"
-    USE_GPU: bool = True
+    USE_GPU: bool = False  # Set to False if CUDA drivers not available
 
     # Logging
     LOG_LEVEL: str = "INFO"
