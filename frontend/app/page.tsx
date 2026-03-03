@@ -99,6 +99,182 @@ export default function Home() {
         </div>
       </div>
 
+      {/* How to Use Section */}
+      <div className="max-w-5xl mx-auto mb-16 glass-morphism-strong rounded-3xl p-8 neon-glow">
+        <h2 className="text-4xl font-bold mb-8 text-center neon-text" style={{ color: '#ff00ff' }}>
+          📖 How to Use This Platform
+        </h2>
+
+        {/* Step by Step Guide */}
+        <div className="space-y-6 mb-10">
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center font-bold neon-glow">1</div>
+            <div>
+              <h3 className="text-xl font-bold text-cyan-300 mb-2">📹 Paste Video URL</h3>
+              <p className="text-cyan-100 leading-relaxed">
+                Enter the URL of any educational video (YouTube, direct MP4 link, etc.). The video should be in English for best results.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center font-bold neon-glow">2</div>
+            <div>
+              <h3 className="text-xl font-bold text-pink-300 mb-2">🌍 Select Target Language</h3>
+              <p className="text-cyan-100 leading-relaxed">
+                Choose from 10+ Indian languages including Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, and Odia.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center font-bold neon-glow-pink">3</div>
+            <div>
+              <h3 className="text-xl font-bold text-purple-300 mb-2">⚙️ Enable Features</h3>
+              <p className="text-cyan-100 leading-relaxed mb-3">
+                Toggle the features you want to enable:
+              </p>
+              <ul className="space-y-2 text-cyan-100">
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400 mt-1">✨</span>
+                  <span><strong className="text-cyan-300">Interactive Quizzes:</strong> Generates 3-5 multiple-choice questions to test understanding. Questions appear at key moments in the video.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-pink-400 mt-1">👁️</span>
+                  <span><strong className="text-pink-300">Vision-Sync Overlays:</strong> Detects blackboard text, diagrams, and equations, then adds translated labels as AR overlays. Perfect for technical content.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-400 mt-1">🎓</span>
+                  <span><strong className="text-purple-300">Explainer Mode:</strong> Converts complex technical language into simple Hinglish explanations. Great for beginners or non-technical audiences.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-pink-500 flex items-center justify-center font-bold neon-glow">4</div>
+            <div>
+              <h3 className="text-xl font-bold text-cyan-300 mb-2">🚀 Start Processing</h3>
+              <p className="text-cyan-100 leading-relaxed">
+                Click "Start Localization" and you'll receive a Job ID. Processing takes approximately 15 minutes for a 10-minute video. Track progress using the Job ID.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Explained */}
+        <div className="border-t border-cyan-500/30 pt-8 mb-8">
+          <h3 className="text-2xl font-bold mb-6 text-center neon-text" style={{ color: '#00f3ff' }}>
+            🎯 What Happens During Processing
+          </h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="glass-morphism rounded-xl p-5">
+              <h4 className="font-bold text-cyan-300 mb-3 flex items-center gap-2">
+                <span className="text-2xl">🎤</span> Automatic Features (Always Enabled)
+              </h4>
+              <ul className="space-y-2 text-cyan-100 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span><strong>Speech-to-Text:</strong> Extracts accurate transcript from video audio</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span><strong>Neural Translation:</strong> Translates to your chosen language with technical term preservation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span><strong>Voice Cloning:</strong> Replicates professor's voice speaking in new language (95%+ similarity)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span><strong>Lip-Sync:</strong> Adjusts mouth movements to match new audio (9.8/10 accuracy)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span><strong>Subtitles:</strong> Adds accurate subtitles in target language</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="glass-morphism rounded-xl p-5">
+              <h4 className="font-bold text-pink-300 mb-3 flex items-center gap-2">
+                <span className="text-2xl">⚡</span> Optional Features (You Choose)
+              </h4>
+              <ul className="space-y-2 text-cyan-100 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-pink-400">•</span>
+                  <span><strong>Interactive Quizzes:</strong> +2 min processing time. Generates MCQs with explanations</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-pink-400">•</span>
+                  <span><strong>Vision-Sync Overlays:</strong> +6 min processing time. Ideal for math/science/code tutorials</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-pink-400">•</span>
+                  <span><strong>Explainer Mode:</strong> +1 min processing time. Simplifies jargon for better understanding</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Tips & Best Practices */}
+        <div className="border-t border-cyan-500/30 pt-8">
+          <h3 className="text-2xl font-bold mb-6 text-center neon-text" style={{ color: '#a855f7' }}>
+            💡 Tips for Best Results
+          </h3>
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
+            <div className="glass-morphism rounded-xl p-4">
+              <h4 className="font-bold text-purple-300 mb-2">✅ Do This</h4>
+              <ul className="space-y-1 text-cyan-100">
+                <li>• Use videos with clear audio quality</li>
+                <li>• Enable Vision-Sync for whiteboard/slides</li>
+                <li>• Enable Quizzes for student engagement</li>
+                <li>• Use Explainer Mode for beginners</li>
+              </ul>
+            </div>
+            <div className="glass-morphism rounded-xl p-4">
+              <h4 className="font-bold text-red-300 mb-2">❌ Avoid This</h4>
+              <ul className="space-y-1 text-cyan-100">
+                <li>• Videos with background music/noise</li>
+                <li>• Multiple speakers talking simultaneously</li>
+                <li>• Videos shorter than 2 minutes</li>
+                <li>• Non-educational content</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Processing Time Info */}
+        <div className="mt-8 glass-morphism rounded-xl p-5 border border-cyan-500/30">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-3xl">⏱️</span>
+            <h4 className="font-bold text-cyan-300 text-lg">Expected Processing Times</h4>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
+            <div>
+              <div className="font-bold text-cyan-400">5-min video</div>
+              <div className="text-cyan-100">~8 minutes</div>
+            </div>
+            <div>
+              <div className="font-bold text-purple-400">10-min video</div>
+              <div className="text-cyan-100">~15 minutes</div>
+            </div>
+            <div>
+              <div className="font-bold text-pink-400">30-min video</div>
+              <div className="text-cyan-100">~45 minutes</div>
+            </div>
+            <div>
+              <div className="font-bold text-cyan-400">50-min lecture</div>
+              <div className="text-cyan-100">~75 minutes</div>
+            </div>
+          </div>
+          <p className="text-xs text-cyan-300 mt-4 text-center italic">
+            * Times may vary based on video quality and enabled features. You can track progress in real-time using your Job ID.
+          </p>
+        </div>
+      </div>
+
       {/* Main Form */}
       <div className="max-w-2xl mx-auto glass-morphism-strong rounded-3xl p-8 neon-glow">
         <h2 className="text-4xl font-bold mb-8 text-center neon-text" style={{ color: '#00f3ff' }}>
