@@ -11,6 +11,7 @@ from app.services.simple_quiz_generator import get_simple_quiz_generator
 from app.services.simple_ar_labeling import get_simple_ar_service
 from app.services.voice_clone import get_voice_clone_service
 from app.services.lip_sync import get_lip_sync_service
+from app.services.explainer_generator import ExplainerGenerator
 from app.utils.video_utils import VideoProcessor
 from celery import Task
 from typing import Dict
@@ -26,6 +27,7 @@ class LocalizationTask(Task):
         self._translation = None
         self._quiz = None
         self._vision = None
+        self._explainer = None
 
     @property
     def transcription(self):
@@ -58,6 +60,16 @@ class LocalizationTask(Task):
                 logger.warning(f"AR service init failed: {e}")
                 self._vision = None
         return self._vision
+    
+    @property
+    def explainer(self):
+        if self._explainer is None:
+            try:
+                self._explainer = ExplainerGenerator()
+            except Exception as e:
+                logger.warning(f"Explainer service init failed: {e}")
+                self._explainer = None
+        return self._explainer
     
     def _format_srt_time(self, seconds: float) -> str:
         """Format time in seconds to SRT timestamp format (HH:MM:SS,mmm)"""
@@ -212,36 +224,65 @@ def localize_video_task(
                 {"start": 5.0, "end": 10.0, "text": "Sample transcription segment 2"}
             ]
 
-        # Stage 4: Translate transcript with NLLB-200 (Hinglish mode enabled)
-        logger.info(f"[{job_id}] Stage 4: Translating to {target_language} (Hinglish mode: technical terms in English)")
-        self.update_state(state="PROCESSING", meta={"stage": f"Translating to {target_language}", "progress": 50})
+        # Stage 4: Translate or Generate Explanation
+        enable_explainer = options.get("enable_explainer", False)
         
-        translated_segments = []
-        for segment in segments:
+        if enable_explainer:
+            # Generate simplified Hinglish explanation instead of translation
+            logger.info(f"[{job_id}] Stage 4: Generating simplified Hinglish explanation")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating explanation", "progress": 50})
+            
             try:
-                # Translate with Hinglish mode (Hindi + English technical terms)
-                translated_text = self.translation.translate(
-                    text=segment["text"],
-                    target_lang=target_language,
-                    preserve_technical=True  # Enable Hinglish: Hindi grammar + English technical terms
-                )
-                translated_segments.append({
-                    "start": segment["start"],
-                    "end": segment["end"],
-                    "original": segment["text"],
-                    "translated": translated_text
-                })
+                # Generate explanation segments with simplified language
+                explanation_result = self.explainer.generate_explanation(segments, target_language)
+                translated_segments = explanation_result["segments"]
+                
+                # Create full explanation script for metadata
+                video_title = options.get("video_title", "Video")
+                explanation_script = self.explainer.create_explanation_script(segments, video_title)
+                
+                logger.info(f"[{job_id}] Generated explanation with {len(translated_segments)} segments")
+                logger.info(f"[{job_id}] Explanation script length: {len(explanation_script)} characters")
+                
+                # Store explanation metadata
+                options["explanation_script"] = explanation_script
+                options["explanation_type"] = "simplified_hinglish"
+                
             except Exception as e:
-                logger.warning(f"[{job_id}] Translation failed for segment: {e}")
-                # Fallback to original text without language tags
-                translated_segments.append({
-                    "start": segment["start"],
-                    "end": segment["end"],
-                    "original": segment["text"],
-                    "translated": segment["text"]  # Use original text as fallback
-                })
+                logger.error(f"[{job_id}] Explanation generation failed: {e}. Falling back to translation.")
+                enable_explainer = False  # Fallback to translation
         
-        logger.info(f"[{job_id}] Translated {len(translated_segments)} segments")
+        if not enable_explainer:
+            # Standard translation with NLLB-200 (Hinglish mode enabled)
+            logger.info(f"[{job_id}] Stage 4: Translating to {target_language} (Hinglish mode: technical terms in English)")
+            self.update_state(state="PROCESSING", meta={"stage": f"Translating to {target_language}", "progress": 50})
+            
+            translated_segments = []
+            for segment in segments:
+                try:
+                    # Translate with Hinglish mode (Hindi + English technical terms)
+                    translated_text = self.translation.translate(
+                        text=segment["text"],
+                        target_lang=target_language,
+                        preserve_technical=True  # Enable Hinglish: Hindi grammar + English technical terms
+                    )
+                    translated_segments.append({
+                        "start": segment["start"],
+                        "end": segment["end"],
+                        "original": segment["text"],
+                        "translated": translated_text
+                    })
+                except Exception as e:
+                    logger.warning(f"[{job_id}] Translation failed for segment: {e}")
+                    # Fallback to original text without language tags
+                    translated_segments.append({
+                        "start": segment["start"],
+                        "end": segment["end"],
+                        "original": segment["text"],
+                        "translated": segment["text"]  # Use original text as fallback
+                    })
+            
+            logger.info(f"[{job_id}] Translated {len(translated_segments)} segments")
 
         # Stage 5: Generate Hindi TTS audio (voice dubbing)
         logger.info(f"[{job_id}] Stage 5: Generating Hindi audio (TTS)")

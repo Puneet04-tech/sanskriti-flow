@@ -35,6 +35,7 @@ class LocalizationRequest(BaseModel):
     enable_swar: bool = Field(False, description="Add assistive audio for visually impaired")
     enable_drishti: bool = Field(False, description="Enable rural/edge mode")
     preserve_technical_terms: bool = Field(True, description="Keep technical terms in English")
+    enable_explainer: bool = Field(False, description="Generate simplified Hinglish explanation video instead of dubbing")
 
     class Config:
         json_schema_extra = {

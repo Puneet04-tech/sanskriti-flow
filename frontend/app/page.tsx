@@ -11,6 +11,7 @@ export default function Home() {
   const [targetLanguage, setTargetLanguage] = useState('hi')
   const [enableQuiz, setEnableQuiz] = useState(true)
   const [enableVisionSync, setEnableVisionSync] = useState(true)
+  const [enableExplainer, setEnableExplainer] = useState(false)
   const [loading, setLoading] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,7 @@ export default function Home() {
         target_language: targetLanguage,
         enable_quiz: enableQuiz,
         enable_vision_sync: enableVisionSync,
+        enable_explainer: enableExplainer,
       })
 
       setJobId(response.data.job_id)
@@ -65,10 +67,10 @@ export default function Home() {
       {/* Features Grid */}
       <div className="grid md:grid-cols-3 gap-8 mb-16">
         <div className="p-6 bg-white rounded-lg shadow-lg border border-gray-200">
-          <div className="text-4xl mb-4">🎯</div>
-          <h3 className="text-xl font-bold mb-2">Neural Hinglish</h3>
+          <div className="text-4xl mb-4">�</div>
+          <h3 className="text-xl font-bold mb-2">Explainer Mode</h3>
           <p className="text-gray-600">
-            Preserves technical terms in English while explaining concepts in your language
+            Simplifies complex content into easy Hinglish - no heavy words, just clear explanations
           </p>
         </div>
         <div className="p-6 bg-white rounded-lg shadow-lg border border-gray-200">
@@ -144,6 +146,17 @@ export default function Home() {
                 className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
               />
               <span className="text-gray-700">Add Vision-Sync Overlays</span>
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={enableExplainer}
+                onChange={(e) => setEnableExplainer(e.target.checked)}
+                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-gray-700">
+                🎓 Explanation Mode (Simplified Hinglish - No Heavy Words)
+              </span>
+            </label>
             </label>
           </div>
 
