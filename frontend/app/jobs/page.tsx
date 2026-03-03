@@ -129,10 +129,18 @@ function JobsContent() {
               </div>
 
               {/* Status Badge */}
-              <div>
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(searchResult.status)}`}>
                   {searchResult.status?.toUpperCase() || 'UNKNOWN'}
                 </span>
+                
+                {/* Explainer Mode Badge */}
+                {searchResult.explanation_type === 'simplified_hinglish' && (
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/50 text-cyan-300">
+                    <span>🎓</span>
+                    <span>Explainer Mode</span>
+                  </span>
+                )}
               </div>
 
               {/* Progress */}
