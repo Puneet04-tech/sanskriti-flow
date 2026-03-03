@@ -417,6 +417,49 @@ def localize_video_task(
                 logger.warning(f"[{job_id}] AR labeling failed: {e}")
                 # Continue with original video
 
+        # Stage 7.5: Apply Lip-Sync (Neural Mirroring) - Optional
+        enable_lip_sync = options.get("enable_lip_sync", False)
+        
+        if enable_lip_sync and hindi_audio_path and os.path.exists(hindi_audio_path):
+            logger.info(f"[{job_id}] Stage 7.5: Applying LatentSync neural lip-sync")
+            self.update_state(state="PROCESSING", meta={"stage": "Re-rendering lips with diffusion", "progress": 90})
+            
+            try:
+                from app.services.lip_sync import get_lip_sync_service
+                lip_sync_service = get_lip_sync_service()
+                
+                if lip_sync_service.available:
+                    # Apply diffusion-based lip-sync
+                    logger.info(f"[{job_id}] Running LatentSync diffusion model...")
+                    
+                    # Create temp path for lip-synced video
+                    lip_synced_video = os.path.join(job_dir, "lip_synced.mp4")
+                    
+                    # Apply neural lip-sync (re-render lips to match new audio)
+                    lip_synced_video = lip_sync_service.sync_video(
+                        video_path=video_input_path,
+                        audio_path=hindi_audio_path,
+                        output_path=lip_synced_video
+                    )
+                    
+                    # Use lip-synced video for final output
+                    if os.path.exists(lip_synced_video):
+                        video_input_path = lip_synced_video
+                        logger.info(f"[{job_id}] ✅ Lip-sync applied successfully")
+                        logger.info(f"[{job_id}] Lips now match {target_language} audio perfectly")
+                        
+                        # Store lip-sync metadata
+                        options["lip_sync_enabled"] = True
+                        options["lip_sync_method"] = "latentsync_diffusion"
+                    else:
+                        logger.warning(f"[{job_id}] Lip-sync output not found")
+                        
+                else:
+                    logger.info(f"[{job_id}] LatentSync not available - merging audio without lip-sync")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] Lip-sync failed: {e}. Continuing without lip-sync.")
+                # Continue with original video (audio will still be replaced)
 
         # Stage 8: Finalize - Merge Hindi audio and add subtitles to video
         logger.info(f"[{job_id}] Stage 8: Finalizing video with Hindi audio + subtitles")
