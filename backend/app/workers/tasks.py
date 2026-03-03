@@ -10,6 +10,7 @@ from app.services.translation import get_translation_service
 from app.services.simple_quiz_generator import get_simple_quiz_generator
 from app.services.simple_ar_labeling import get_simple_ar_service
 from app.services.voice_clone import get_voice_clone_service
+from app.services.cosyvoice2_clone import get_cosyvoice2_service
 from app.services.lip_sync import get_lip_sync_service
 from app.services.explainer_generator import ExplainerGenerator
 from app.utils.video_utils import VideoProcessor
@@ -28,6 +29,7 @@ class LocalizationTask(Task):
         self._quiz = None
         self._vision = None
         self._explainer = None
+        self._cosyvoice2 = None
 
     @property
     def transcription(self):
@@ -70,6 +72,16 @@ class LocalizationTask(Task):
                 logger.warning(f"Explainer service init failed: {e}")
                 self._explainer = None
         return self._explainer
+    
+    @property
+    def cosyvoice2(self):
+        if self._cosyvoice2 is None:
+            try:
+                self._cosyvoice2 = get_cosyvoice2_service()
+            except Exception as e:
+                logger.warning(f"CosyVoice2 service init failed: {e}")
+                self._cosyvoice2 = None
+        return self._cosyvoice2
     
     def _format_srt_time(self, seconds: float) -> str:
         """Format time in seconds to SRT timestamp format (HH:MM:SS,mmm)"""
@@ -284,28 +296,70 @@ def localize_video_task(
             
             logger.info(f"[{job_id}] Translated {len(translated_segments)} segments")
 
-        # Stage 5: Generate Hindi TTS audio (voice dubbing)
-        logger.info(f"[{job_id}] Stage 5: Generating Hindi audio (TTS)")
-        self.update_state(state="PROCESSING", meta={"stage": "Generating Hindi audio", "progress": 60})
+        # Stage 5: Generate audio with voice cloning or TTS
+        enable_voice_clone = options.get("enable_voice_clone", False)
+        voice_sample_path = None
         
-        hindi_audio_path = os.path.join(job_dir, "hindi_audio.wav")
-        try:
-            # Generate Hindi TTS audio from translated segments
-            from app.services.voice_clone import get_voice_clone_service
-            tts_service = get_voice_clone_service()
+        if enable_voice_clone and self.cosyvoice2 and self.cosyvoice2.available:
+            # Zero-shot voice cloning with CosyVoice2
+            logger.info(f"[{job_id}] Stage 5: Voice cloning with CosyVoice2 (zero-shot)")
+            self.update_state(state="PROCESSING", meta={"stage": "Cloning professor's voice", "progress": 60})
             
-            hindi_audio_path = tts_service.generate_speech_from_segments(
-                segments=translated_segments,
-                output_path=hindi_audio_path,
-                language=target_language,
-                slow=False
-            )
+            try:
+                # Extract 5-10 second voice sample from original audio
+                logger.info(f"[{job_id}] Extracting voice sample for cloning...")
+                voice_sample_path = self.cosyvoice2.extract_voice_sample(
+                    audio_path=audio_path,
+                    duration=7.0,  # 7 seconds is optimal
+                    offset=5.0     # Skip first 5 seconds (usually intro/music)
+                )
+                
+                logger.info(f"[{job_id}] Voice sample extracted: {voice_sample_path}")
+                
+                # Generate audio with cloned voice
+                hindi_audio_path = os.path.join(job_dir, "cloned_voice_audio.wav")
+                hindi_audio_path = self.cosyvoice2.clone_voice_segments(
+                    reference_audio=voice_sample_path,
+                    segments=translated_segments,
+                    language=target_language,
+                    output_path=hindi_audio_path
+                )
+                
+                audio_size = os.path.getsize(hindi_audio_path) / (1024 * 1024)
+                logger.info(f"[{job_id}] ✅ Voice cloned successfully: {audio_size:.2f} MB")
+                logger.info(f"[{job_id}] Professor's voice replicated from {voice_sample_path}")
+                
+                # Store voice cloning metadata
+                options["voice_cloning_enabled"] = True
+                options["voice_sample_duration"] = 7.0
+                
+            except Exception as e:
+                logger.warning(f"[{job_id}] Voice cloning failed: {e}. Falling back to TTS.")
+                enable_voice_clone = False  # Fallback to standard TTS
+        
+        if not enable_voice_clone or not self.cosyvoice2 or not self.cosyvoice2.available:
+            # Standard TTS (fallback)
+            logger.info(f"[{job_id}] Stage 5: Generating audio with standard TTS")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating Hindi audio", "progress": 60})
             
-            audio_size = os.path.getsize(hindi_audio_path) / (1024 * 1024)
-            logger.info(f"[{job_id}] Generated Hindi audio: {audio_size:.2f} MB")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Hindi audio generation failed: {e}")
-            hindi_audio_path = None
+            hindi_audio_path = os.path.join(job_dir, "hindi_audio.wav")
+            try:
+                # Generate Hindi TTS audio from translated segments
+                from app.services.voice_clone import get_voice_clone_service
+                tts_service = get_voice_clone_service()
+                
+                hindi_audio_path = tts_service.generate_speech_from_segments(
+                    segments=translated_segments,
+                    output_path=hindi_audio_path,
+                    language=target_language,
+                    slow=False
+                )
+                
+                audio_size = os.path.getsize(hindi_audio_path) / (1024 * 1024)
+                logger.info(f"[{job_id}] Generated Hindi audio: {audio_size:.2f} MB")
+            except Exception as e:
+                logger.warning(f"[{job_id}] Hindi audio generation failed: {e}")
+                hindi_audio_path = None
 
         # Stage 6: Generate quiz questions (optional) - NOW ENABLED WITH SIMPLE GENERATOR
         quizzes = []
