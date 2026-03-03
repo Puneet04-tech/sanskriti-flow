@@ -197,8 +197,11 @@ class TranslationService:
             generated_tokens = self.model.generate(
                 **inputs,
                 max_length=512,
-                num_beams=4,
+                num_beams=5,  # Increased for better quality
                 early_stopping=True,
+                length_penalty=1.0,
+                repetition_penalty=1.2,  # Avoid repetitions
+                no_repeat_ngram_size=3,  # Better quality
             )
         else:
             src_code = self.LANGUAGE_CODES.get("en", "eng_Latn")
@@ -212,8 +215,11 @@ class TranslationService:
                 **inputs,
                 forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
                 max_length=512,
-                num_beams=5,
+                num_beams=5,  # Maximum quality beam search
                 length_penalty=1.0,
+                repetition_penalty=1.2,
+                no_repeat_ngram_size=3,
+                early_stopping=True,
             )
         
         # Decode

@@ -91,17 +91,17 @@ class SimpleARLabelingService:
             
             # Convert to H.264 with compatible profile using FFmpeg
             import subprocess
-            logger.info("Converting AR video to H.264 with Main profile...")
+            logger.info("Converting AR video to H.264 with high quality...")
             ffmpeg_cmd = [
                 'ffmpeg', '-y',
                 '-i', temp_output,
                 '-vf', 'scale=in_range=full:out_range=limited',  # Convert JPEG to TV color range
                 '-c:v', 'libx264',
-                '-profile:v', 'baseline',  # Most compatible profile
-                '-level', '3.0',  # Compatible level
+                '-profile:v', 'high',  # High quality profile
+                '-level', '4.1',  # Higher level for better quality
                 '-pix_fmt', 'yuv420p',
-                '-preset', 'fast',  # Changed from 'medium' for 2x faster encoding
-                '-crf', '23',
+                '-preset', 'slow',  # Maximum quality encoding
+                '-crf', '18',  # Visually lossless quality
                 '-movflags', '+faststart',
                 output_path
             ]

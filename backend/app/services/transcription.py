@@ -84,17 +84,20 @@ class TranscriptionService:
                 audio_path,
                 language=language,
                 task=task,
-                beam_size=3,  # Reduced from 5 for 40% faster transcription
+                beam_size=5,  # Maximum beam size for best accuracy
+                best_of=5,  # Evaluate 5 candidates per beam for highest quality
+                patience=2.0,  # Wait longer for better results
                 temperature=0.0,  # Deterministic, reduces hallucination
                 vad_filter=True,  # Voice Activity Detection
                 vad_parameters=dict(
                     min_silence_duration_ms=500,
                     threshold=0.5  # Stricter VAD threshold
                 ),
-                condition_on_previous_text=False,  # Reduces error propagation
+                condition_on_previous_text=True,  # Use context for better accuracy
                 compression_ratio_threshold=2.4,  # Detect gibberish
-                log_prob_threshold=-1.0,  # Filter low-confidence segments
+                log_prob_threshold=-0.5,  # More selective filtering
                 no_speech_threshold=0.6,  # Filter silence
+                word_timestamps=True,  # Get word-level timestamps for precision
             )
             
             # Convert generator to list and filter gibberish

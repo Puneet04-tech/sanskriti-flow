@@ -325,8 +325,9 @@ class LatentSyncService:
                 synced_face = self.model.generate(
                     face_region=face_region,
                     audio_features=audio_window,
-                    num_inference_steps=3,  # Reduced from 5 to 3 for 40% faster processing
-                    guidance_scale=7.5
+                    num_inference_steps=15,  # Maximum steps for photorealistic quality
+                    guidance_scale=7.5,
+                    eta=0.0  # Deterministic for consistency
                 )
                 
                 # Blend synced face back into frame
