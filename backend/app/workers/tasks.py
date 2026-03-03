@@ -401,7 +401,8 @@ def localize_video_task(
                             video_input_path,
                             ar_video_path,
                             label_data,
-                        sample_rate=10  # Process every 10th frame for maximum visual quality
+                            sample_rate=10  # Process every 10th frame for maximum visual quality
+                        )
                     else:
                         logger.warning(f"[{job_id}] No labels generated for AR")
                 else:
