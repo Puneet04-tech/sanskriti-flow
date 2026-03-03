@@ -156,14 +156,28 @@ def localize_video_task(
                 # Validate the downloaded video
                 try:
                     probe_result = subprocess.run(
-                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
+                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration,size,bit_rate', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
                         capture_output=True, timeout=10, text=True, check=True
                     )
-                    duration = float(probe_result.stdout.strip())
-                    logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
+                    lines = probe_result.stdout.strip().split('\n')
+                    duration = float(lines[0]) if lines else 0
+                    actual_size = int(lines[1]) if len(lines) > 1 else file_size
+                    bit_rate = int(lines[2]) if len(lines) > 2 else 0
+                    
+                    # Validate file integrity
+                    min_expected_size = duration * 50000  # At least ~50KB per second (very low threshold)
+                    if actual_size < min_expected_size and duration > 5:
+                        raise Exception(f"Video file too small for duration: {actual_size} bytes for {duration}s (expected >{min_expected_size})")
+                    
+                    if bit_rate < 100000 and duration > 10:  # Less than 100kbps for long videos is suspicious
+                        raise Exception(f"Video bitrate too low: {bit_rate} bps")
+                    
+                    logger.info(f"[{job_id}] Video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")
                     download_success = True
                 except Exception as probe_error:
                     logger.warning(f"[{job_id}] Video validation failed: {probe_error}")
+                    if os.path.exists(video_input_path):
+                        os.remove(video_input_path)
                     
             except Exception as e:
                 logger.warning(f"[{job_id}] yt-dlp download failed: {e}")
@@ -188,14 +202,28 @@ def localize_video_task(
                 # Validate the downloaded video with ffprobe
                 try:
                     probe_result = subprocess.run(
-                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
+                        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration,size,bit_rate', '-of', 'default=noprint_wrappers=1:nokey=1', video_input_path],
                         capture_output=True, timeout=10, text=True, check=True
                     )
-                    duration = float(probe_result.stdout.strip())
-                    logger.info(f"[{job_id}] Video validated: {duration:.2f} seconds")
+                    lines = probe_result.stdout.strip().split('\n')
+                    duration = float(lines[0]) if lines else 0
+                    actual_size = int(lines[1]) if len(lines) > 1 else file_size
+                    bit_rate = int(lines[2]) if len(lines) > 2 else 0
+                    
+                    # Validate file integrity
+                    min_expected_size = duration * 50000  # At least ~50KB per second (very low threshold)
+                    if actual_size < min_expected_size and duration > 5:
+                        raise Exception(f"Video file too small for duration: {actual_size} bytes for {duration}s (expected >{min_expected_size})")
+                    
+                    if bit_rate < 100000 and duration > 10:  # Less than 100kbps for long videos is suspicious
+                        raise Exception(f"Video bitrate too low: {bit_rate} bps")
+                    
+                    logger.info(f"[{job_id}] Video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")
                     download_success = True
                 except Exception as probe_error:
                     logger.warning(f"[{job_id}] Video validation failed: {probe_error}. File might be corrupted.")
+                    if os.path.exists(video_input_path):
+                        os.remove(video_input_path)
                     
             except Exception as e:
                 logger.warning(f"[{job_id}] Video download failed: {e}")
@@ -581,6 +609,35 @@ def localize_video_task(
             except Exception as copy_error:
                 logger.error(f"[{job_id}] Even fallback copy failed: {copy_error}")
                 raise
+
+        # Final validation: Ensure output video is valid and playable
+        if os.path.exists(output_path):
+            try:
+                file_size = os.path.getsize(output_path)
+                probe_result = subprocess.run(
+                    ['ffprobe', '-v', 'error', '-show_entries', 'format=duration,size,bit_rate', '-of', 'default=noprint_wrappers=1:nokey=1', output_path],
+                    capture_output=True, timeout=10, text=True, check=True
+                )
+                lines = probe_result.stdout.strip().split('\n')
+                duration = float(lines[0]) if lines else 0
+                actual_size = int(lines[1]) if len(lines) > 1 else file_size
+                bit_rate = int(lines[2]) if len(lines) > 2 else 0
+                
+                # Validate output file integrity
+                min_expected_size = duration * 50000  # At least ~50KB per second
+                if actual_size < min_expected_size and duration > 5:
+                    raise Exception(f"Output video too small: {actual_size} bytes for {duration}s")
+                
+                if bit_rate < 100000 and duration > 10:
+                    raise Exception(f"Output video bitrate too low: {bit_rate} bps")
+                
+                logger.info(f"[{job_id}] Output video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")
+                
+            except Exception as validation_error:
+                logger.error(f"[{job_id}] Output video validation failed: {validation_error}")
+                raise Exception(f"Output video is corrupted or unplayable: {validation_error}")
+        else:
+            raise Exception("Output video file was not created")
 
         logger.info(f"[{job_id}] Localization complete!")
 
