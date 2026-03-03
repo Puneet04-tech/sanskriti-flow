@@ -84,8 +84,7 @@ class TranscriptionService:
                 audio_path,
                 language=language,
                 task=task,
-                beam_size=5,
-                best_of=5,  # Use best of 5 candidates
+                beam_size=3,  # Reduced from 5 for 40% faster transcription
                 temperature=0.0,  # Deterministic, reduces hallucination
                 vad_filter=True,  # Voice Activity Detection
                 vad_parameters=dict(

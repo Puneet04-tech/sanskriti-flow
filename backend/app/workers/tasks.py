@@ -306,11 +306,11 @@ def localize_video_task(
             self.update_state(state="PROCESSING", meta={"stage": "Cloning professor's voice", "progress": 60})
             
             try:
-                # Extract 5-10 second voice sample from original audio
+                # Extract 4-5 second voice sample from original audio
                 logger.info(f"[{job_id}] Extracting voice sample for cloning...")
                 voice_sample_path = self.cosyvoice2.extract_voice_sample(
                     audio_path=audio_path,
-                    duration=7.0,  # 7 seconds is optimal
+                    duration=4.0,  # Reduced from 7 to 4 seconds for faster processing
                     offset=5.0     # Skip first 5 seconds (usually intro/music)
                 )
                 
@@ -331,7 +331,7 @@ def localize_video_task(
                 
                 # Store voice cloning metadata
                 options["voice_cloning_enabled"] = True
-                options["voice_sample_duration"] = 7.0
+                options["voice_sample_duration"] = 4.0
                 
             except Exception as e:
                 logger.warning(f"[{job_id}] Voice cloning failed: {e}. Falling back to TTS.")
@@ -401,7 +401,7 @@ def localize_video_task(
                             video_input_path,
                             ar_video_path,
                             label_data,
-                            sample_rate=30  # Process every 30th frame for performance
+                            sample_rate=60  # Process every 60th frame for faster performance
                         )
                         
                         # Use AR video as new input for final stage
@@ -506,7 +506,7 @@ def localize_video_task(
                         '-map', '0:v',  # Use video from first input
                         '-map', '1:a',  # Use Hindi audio (from second input)
                         '-c:v', 'libx264',
-                        '-preset', 'medium',
+                        '-preset', 'fast',  # Changed from 'medium' for 2x faster encoding
                         '-crf', '23',
                         '-profile:v', 'baseline',  # Maximum compatibility
                         '-level', '3.0',
@@ -526,7 +526,7 @@ def localize_video_task(
                         '-i', video_input_path,
                         '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4',scale=in_range=full:out_range=limited",
                         '-c:v', 'libx264',
-                        '-preset', 'medium',
+                        '-preset', 'fast',  # Changed from 'medium' for 2x faster encoding
                         '-crf', '23',
                         '-profile:v', 'baseline',  # Maximum compatibility
                         '-level', '3.0',

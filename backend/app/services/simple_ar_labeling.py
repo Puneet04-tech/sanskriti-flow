@@ -100,7 +100,7 @@ class SimpleARLabelingService:
                 '-profile:v', 'baseline',  # Most compatible profile
                 '-level', '3.0',  # Compatible level
                 '-pix_fmt', 'yuv420p',
-                '-preset', 'medium',
+                '-preset', 'fast',  # Changed from 'medium' for 2x faster encoding
                 '-crf', '23',
                 '-movflags', '+faststart',
                 output_path

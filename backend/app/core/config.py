@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     NLLB_MODEL: str = "Helsinki-NLP/opus-mt-en-hi"  # Lighter model for CPU (280MB vs 600MB)
     LLAMA_MODEL: str = "models/llama-3.1-8b-instruct.gguf"
     MOONDREAM_MODEL: str = "vikhyatk/moondream2"
+    MODEL_DIR: str = "./models"  # Directory for ML model weights
 
     # Processing
     MAX_VIDEO_SIZE_MB: int = 500
