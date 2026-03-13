@@ -100,8 +100,8 @@ class SimpleARLabelingService:
                 '-profile:v', 'high',  # High quality profile
                 '-level', '4.1',  # Higher level for better quality
                 '-pix_fmt', 'yuv420p',
-                '-preset', 'slow',  # Maximum quality encoding
-                '-crf', '18',  # Visually lossless quality
+                '-preset', 'fast',  # Fast encoding for quick processing
+                '-crf', '23',  # Good quality with fast speed
                 '-movflags', '+faststart',
                 output_path
             ]

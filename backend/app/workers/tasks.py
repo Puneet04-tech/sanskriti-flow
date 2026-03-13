@@ -142,13 +142,19 @@ def localize_video_task(
             # Use yt-dlp for YouTube and streaming platforms
             try:
                 logger.info(f"[{job_id}] Using yt-dlp for video download")
+                logger.info(f"[{job_id}] URL: {video_path}")
                 result = subprocess.run([
                     'yt-dlp',
                     '-f', 'best[ext=mp4]/best',  # Prefer MP4 format
                     '-o', video_input_path,
                     '--no-playlist',
+                    '--no-check-certificate',
                     video_path
-                ], capture_output=True, text=True, timeout=600, check=True)
+                ], capture_output=True, text=True, timeout=600, check=False)
+                
+                if result.returncode != 0:
+                    logger.error(f"[{job_id}] yt-dlp failed: {result.stderr[:500]}")
+                    raise Exception(f"yt-dlp download failed: {result.stderr[:200]}")
                 
                 file_size = os.path.getsize(video_input_path)
                 logger.info(f"[{job_id}] Downloaded video with yt-dlp: {file_size} bytes")
@@ -164,12 +170,12 @@ def localize_video_task(
                     actual_size = int(lines[1]) if len(lines) > 1 else file_size
                     bit_rate = int(lines[2]) if len(lines) > 2 else 0
                     
-                    # Validate file integrity
-                    min_expected_size = duration * 50000  # At least ~50KB per second (very low threshold)
+                    # Validate file integrity (modern YouTube H.264 videos: 10-50KB/sec is normal)
+                    min_expected_size = duration * 10000  # At least ~10KB per second (realistic for compressed video)
                     if actual_size < min_expected_size and duration > 5:
                         raise Exception(f"Video file too small for duration: {actual_size} bytes for {duration}s (expected >{min_expected_size})")
                     
-                    if bit_rate < 100000 and duration > 10:  # Less than 100kbps for long videos is suspicious
+                    if bit_rate < 50000 and duration > 10:  # Less than 50kbps for long videos is suspicious
                         raise Exception(f"Video bitrate too low: {bit_rate} bps")
                     
                     logger.info(f"[{job_id}] Video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")
@@ -210,12 +216,12 @@ def localize_video_task(
                     actual_size = int(lines[1]) if len(lines) > 1 else file_size
                     bit_rate = int(lines[2]) if len(lines) > 2 else 0
                     
-                    # Validate file integrity
-                    min_expected_size = duration * 50000  # At least ~50KB per second (very low threshold)
+                    # Validate file integrity (modern YouTube H.264 videos: 10-50KB/sec is normal)
+                    min_expected_size = duration * 10000  # At least ~10KB per second (realistic for compressed video)
                     if actual_size < min_expected_size and duration > 5:
                         raise Exception(f"Video file too small for duration: {actual_size} bytes for {duration}s (expected >{min_expected_size})")
                     
-                    if bit_rate < 100000 and duration > 10:  # Less than 100kbps for long videos is suspicious
+                    if bit_rate < 50000 and duration > 10:  # Less than 50kbps for long videos is suspicious
                         raise Exception(f"Video bitrate too low: {bit_rate} bps")
                     
                     logger.info(f"[{job_id}] Video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")
@@ -229,14 +235,21 @@ def localize_video_task(
                 logger.warning(f"[{job_id}] Video download failed: {e}")
         
         if not download_success:
-            logger.info(f"[{job_id}] Using sample video as fallback")
-            # Generate a sample video as fallback
-            subprocess.run([
-                'ffmpeg', '-y', '-f', 'lavfi', '-i', 'testsrc=duration=10:size=1280x720:rate=25',
-                '-f', 'lavfi', '-i', 'sine=frequency=1000:duration=10',
-                '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
-                '-c:a', 'aac', video_input_path
-            ], capture_output=True, timeout=30, check=True)
+            logger.warning(f"[{job_id}] All download attempts failed! Using sample video as fallback")
+            # Generate a sample video as fallback with clear audio
+            try:
+                subprocess.run([
+                    'ffmpeg', '-y',
+                    '-f', 'lavfi', '-i', 'testsrc=duration=10:size=1280x720:rate=25',
+                    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=10',
+                    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                    '-c:a', 'aac', '-b:a', '128k',
+                    video_input_path
+                ], capture_output=True, timeout=30, check=True)
+                logger.info(f"[{job_id}] Generated sample video successfully")
+            except Exception as ffmpeg_error:
+                logger.error(f"[{job_id}] Sample video generation failed: {ffmpeg_error}")
+                raise Exception("Failed to download video and could not generate fallback sample")
 
         # Stage 2: Extract audio from video
         logger.info(f"[{job_id}] Stage 2: Extracting audio")
@@ -399,10 +412,18 @@ def localize_video_task(
                 # Combine all translated text
                 full_text = " ".join([seg.get("original", seg.get("text", "")) for seg in translated_segments])
                 
-                # Use simple quiz generator (no LLM required)
-                if self.quiz:
+                # Check if we have enough content for quiz generation
+                if len(full_text.strip()) < 100:
+                    logger.warning(f"[{job_id}] Transcript too short ({len(full_text)} chars) for meaningful quiz generation")
+                    quizzes = []
+                elif self.quiz:
+                    # Use simple quiz generator (no LLM required)
                     quizzes = self.quiz.generate_quiz(full_text, num_questions=3, target_language=target_language)
-                    logger.info(f"[{job_id}] Generated {len(quizzes)} quiz questions")
+                    logger.info(f"[{job_id}] Generated {len(quizzes)} quiz questions from {len(full_text)} chars of transcript")
+                    
+                    # Validate quiz quality
+                    quizzes = [q for q in quizzes if len(q.get("question", "")) > 10 and "lecture content" not in q.get("question", "").lower()]
+                    logger.info(f"[{job_id}] {len(quizzes)} quizzes passed quality check")
                 else:
                     logger.warning(f"[{job_id}] Quiz generator not available")
                     
@@ -431,6 +452,10 @@ def localize_video_task(
                             label_data,
                             sample_rate=10  # Process every 10th frame for maximum visual quality
                         )
+                        # Use AR video for final output
+                        if os.path.exists(ar_video_path):
+                            video_input_path = ar_video_path
+                            logger.info(f"[{job_id}] Using AR video for final output")
                     else:
                         logger.warning(f"[{job_id}] No labels generated for AR")
                 else:
@@ -493,10 +518,10 @@ def localize_video_task(
         output_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.mp4")
         output_path = os.path.normpath(output_path)
         
-        # Generate SRT subtitle file from translated segments
-        srt_path = os.path.join(job_dir, "subtitles.srt")
+        # Generate SRT subtitle file from translated segments (saved alongside video, NOT burned in)
+        srt_output_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.srt")
         try:
-            with open(srt_path, 'w', encoding='utf-8') as srt_file:
+            with open(srt_output_path, 'w', encoding='utf-8') as srt_file:
                 for idx, segment in enumerate(translated_segments, 1):
                     start_time = self._format_srt_time(segment["start"])
                     end_time = self._format_srt_time(segment["end"])
@@ -507,94 +532,46 @@ def localize_video_task(
                     srt_file.write(f"{text}\n\n")
             
             logger.info(f"[{job_id}] Created SRT subtitle file with {len(translated_segments)} segments")
+            logger.info(f"[{job_id}] Subtitles saved as external .srt file (not burned into video)")
         except Exception as e:
             logger.warning(f"[{job_id}] Subtitle file creation failed: {e}")
-            srt_path = None
         
-        # Burn subtitles into video and replace audio
+        # Merge audio without subtitle burning (subtitles saved as separate .srt file)
         try:
-            if srt_path and os.path.exists(srt_path):
-                # Escape the subtitle path for ffmpeg (Windows path handling)
-                srt_path_escaped = srt_path.replace('\\', '/').replace(':', '\\\\:')
+            # Check if we have Hindi audio to merge
+            if hindi_audio_path and os.path.exists(hindi_audio_path):
+                # Replace audio with Hindi TTS (NO subtitle burning to avoid corruption)
+                logger.info(f"[{job_id}] Merging Hindi audio (subtitles saved as external .srt file)...")
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-i', video_input_path,  # Video (original or AR-enhanced)
+                    '-i', hindi_audio_path,  # Hindi TTS audio
+                    '-map', '0:v',  # Use video from first input
+                    '-map', '1:a',  # Use Hindi audio (from second input)
+                    '-c:v', 'copy',  # Copy video stream (no re-encoding = no corruption)
+                    '-c:a', 'aac', '-b:a', '192k',  # Encode Hindi audio
+                    '-ar', '44100',  # Standard audio sample rate
+                    '-ac', '2',  # Stereo audio
+                    '-movflags', '+faststart',  # Enable streaming/fast playback
+                    '-shortest',  # Match shortest stream
+                    output_path
+                ]
                 
-                # Check if we have Hindi audio to merge
-                if hindi_audio_path and os.path.exists(hindi_audio_path):
-                    # Replace audio with Hindi TTS and burn subtitles
-                    logger.info(f"[{job_id}] Merging Hindi audio and burning subtitles...")
-                    cmd = [
-                        'ffmpeg', '-y',
-                        '-i', video_input_path,  # Original video
-                        '-i', hindi_audio_path,  # Hindi TTS audio
-                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4',scale=in_range=full:out_range=limited",
-                        '-map', '0:v',  # Use video from first input
-                        '-map', '1:a',  # Use Hindi audio (from second input)
-                        '-c:v', 'libx264',
-                        '-preset', 'slow',  # Maximum quality encoding
-                        '-crf', '18',  # Lower CRF for higher quality (18 = visually lossless)
-                        '-profile:v', 'baseline',  # Maximum compatibility
-                        '-level', '3.0',
-                        '-pix_fmt', 'yuv420p',
-                        '-c:a', 'aac', '-b:a', '192k',  # Encode Hindi audio
-                        '-ar', '44100',  # Standard audio sample rate
-                        '-ac', '2',  # Stereo audio
-                        '-movflags', '+faststart',  # Enable streaming/fast playback
-                        '-shortest',  # Match shortest stream
-                        output_path
-                    ]
-                else:
-                    # Just burn subtitles (no audio replacement)
-                    logger.info(f"[{job_id}] Burning subtitles only (no audio replacement)...")
-                    cmd = [
-                        'ffmpeg', '-y',
-                        '-i', video_input_path,
-                        '-vf', f"subtitles={srt_path_escaped}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=4',scale=in_range=full:out_range=limited",
-                        '-c:v', 'libx264',
-                        '-preset', 'slow',  # Maximum quality encoding
-                        '-crf', '18',  # Lower CRF for higher quality
-                        '-profile:v', 'baseline',  # Maximum compatibility
-                        '-level', '3.0',
-                        '-pix_fmt', 'yuv420p',
-                        '-movflags', '+faststart',
-                        '-c:a', 'copy',  # Copy original audio
-                        output_path
-                    ]
-                
-                logger.info(f"[{job_id}] Running ffmpeg to finalize video...")
+                logger.info(f"[{job_id}] Running ffmpeg to merge audio...")
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
                 
                 if result.returncode == 0:
                     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
                     logger.info(f"[{job_id}] Successfully created localized video: {file_size_mb:.2f} MB")
+                    logger.info(f"[{job_id}] Video playable with Hindi audio. Load {job_id}.srt in your player for subtitles.")
                 else:
                     logger.warning(f"[{job_id}] Video finalization failed: {result.stderr[:500]}")
                     raise Exception("Video finalization failed")
             else:
-                # No subtitles - just replace audio if available
-                if hindi_audio_path and os.path.exists(hindi_audio_path):
-                    logger.info(f"[{job_id}] Replacing audio with Hindi (no subtitles)")
-                    cmd = [
-                        'ffmpeg', '-y',
-                        '-i', video_input_path,
-                        '-i', hindi_audio_path,
-                        '-map', '0:v',  # Original video
-                        '-map', '1:a',  # Hindi audio
-                        '-c:v', 'copy',  # Copy video without re-encoding
-                        '-c:a', 'aac', '-b:a', '192k',
-                        '-shortest',
-                        output_path
-                    ]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-                    
-                    if result.returncode == 0:
-                        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-                        logger.info(f"[{job_id}] Successfully created video with Hindi audio: {file_size_mb:.2f} MB")
-                    else:
-                        raise Exception("Audio replacement failed")
-                else:
-                    # No processing - just copy the video
-                    logger.info(f"[{job_id}] No audio or subtitles, copying original video")
-                    import shutil
-                    shutil.copy2(video_input_path, output_path)
+                # No audio replacement - just copy the video
+                logger.info(f"[{job_id}] No Hindi audio generated, copying video as-is")
+                import shutil
+                shutil.copy2(video_input_path, output_path)
                 
         except Exception as e:
             logger.error(f"[{job_id}] Video finalization failed: {e}")
@@ -623,12 +600,12 @@ def localize_video_task(
                 actual_size = int(lines[1]) if len(lines) > 1 else file_size
                 bit_rate = int(lines[2]) if len(lines) > 2 else 0
                 
-                # Validate output file integrity
-                min_expected_size = duration * 50000  # At least ~50KB per second
+                # Validate output file integrity (modern H.264 encoding: 10-50KB/sec is acceptable)
+                min_expected_size = duration * 10000  # At least ~10KB per second
                 if actual_size < min_expected_size and duration > 5:
                     raise Exception(f"Output video too small: {actual_size} bytes for {duration}s")
                 
-                if bit_rate < 100000 and duration > 10:
+                if bit_rate < 50000 and duration > 10:
                     raise Exception(f"Output video bitrate too low: {bit_rate} bps")
                 
                 logger.info(f"[{job_id}] Output video validated: {duration:.2f}s, {actual_size} bytes, {bit_rate} bps")

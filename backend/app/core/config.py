@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
     # Model Paths
-    WHISPER_MODEL: str = "large-v3"  # Best quality model for maximum accuracy
+    WHISPER_MODEL: str = "base"  # Fast model with good accuracy (10x faster than large-v3)
     NLLB_MODEL: str = "facebook/nllb-200-distilled-600M"  # Higher quality translation model
     LLAMA_MODEL: str = "models/llama-3.1-8b-instruct.gguf"
     MOONDREAM_MODEL: str = "vikhyatk/moondream2"

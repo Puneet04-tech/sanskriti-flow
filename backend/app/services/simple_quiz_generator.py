@@ -92,10 +92,17 @@ class SimpleQuizGenerator:
             
             # Fallback: generic questions if not enough
             while len(questions) < num_questions:
-                questions.append(self._generate_generic_question(transcript))
+                generic = self._generate_generic_question(transcript)
+                # Don't add error-type questions
+                if generic.get("type") != "error":
+                    questions.append(generic)
+                else:
+                    # If transcript is too short, return what we have
+                    logger.warning("Transcript too short for quiz generation")
+                    break
             
             logger.info(f"Generated {len(questions)} quiz questions")
-            return questions[:num_questions]
+            return questions[:num_questions] if questions else []
             
         except Exception as e:
             logger.error(f"Quiz generation failed: {str(e)}")
@@ -220,6 +227,23 @@ class SimpleQuizGenerator:
         """Generate a generic question as fallback"""
         # Extract first meaningful sentence
         sentences = [s.strip() for s in context.split('.') if len(s.strip()) > 20]
+        
+        if not sentences or len(context.strip()) < 50:
+            # If transcript is too short, return a proper error message
+            return {
+                "question": "Insufficient transcript data",
+                "options": [
+                    "The video transcript was too short to generate meaningful questions",
+                    "Option B",
+                    "Option C",
+                    "Option D"
+                ],
+                "correct_answer": 0,
+                "explanation": "The transcript needs to be longer for proper quiz generation",
+                "difficulty": "easy",
+                "type": "error"
+            }
+        
         first_sentence = sentences[0] if sentences else "The lecture content"
         
         return {
