@@ -21,6 +21,11 @@ set "TEMP=d:\sanskriti-flow\backend\data\cache\tmp"
 set "TMP=d:\sanskriti-flow\backend\data\cache\tmp"
 set "PIP_CACHE_DIR=d:\sanskriti-flow\backend\data\cache\pip"
 set "MPLCONFIGDIR=d:\sanskriti-flow\backend\data\cache\matplotlib"
+set "NPM_CONFIG_CACHE=d:\sanskriti-flow\backend\data\cache\npm"
+set "PLAYWRIGHT_BROWSERS_PATH=d:\sanskriti-flow\backend\data\cache\playwright"
+set "YARN_CACHE_FOLDER=d:\sanskriti-flow\backend\data\cache\yarn"
+set "PNPM_STORE_PATH=d:\sanskriti-flow\backend\data\cache\pnpm"
+set "PUPPETEER_CACHE_DIR=d:\sanskriti-flow\backend\data\cache\playwright"
 
 echo    HF_HOME=%HF_HOME%
 echo    TORCH_HOME=%TORCH_HOME%
@@ -35,6 +40,10 @@ if not exist "%TORCH_HOME%" mkdir "%TORCH_HOME%"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 if not exist "%PIP_CACHE_DIR%" mkdir "%PIP_CACHE_DIR%"
 if not exist "%MPLCONFIGDIR%" mkdir "%MPLCONFIGDIR%"
+if not exist "%NPM_CONFIG_CACHE%" mkdir "%NPM_CONFIG_CACHE%"
+if not exist "%PLAYWRIGHT_BROWSERS_PATH%" mkdir "%PLAYWRIGHT_BROWSERS_PATH%"
+if not exist "%YARN_CACHE_FOLDER%" mkdir "%YARN_CACHE_FOLDER%"
+if not exist "%PNPM_STORE_PATH%" mkdir "%PNPM_STORE_PATH%"
 echo    ✓ All cache directories created on D drive
 
 REM Clean up any accidental C drive caches

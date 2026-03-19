@@ -64,8 +64,12 @@ set "required_dirs[5]=d:\sanskriti-flow\backend\data\cache\matplotlib"
 set "required_dirs[6]=d:\sanskriti-flow\backend\data\cache\tmp"
 set "required_dirs[7]=d:\sanskriti-flow\backend\data\temp"
 set "required_dirs[8]=d:\sanskriti-flow\backend\data\output"
+set "required_dirs[9]=d:\sanskriti-flow\backend\data\cache\npm"
+set "required_dirs[10]=d:\sanskriti-flow\backend\data\cache\playwright"
+set "required_dirs[11]=d:\sanskriti-flow\backend\data\cache\yarn"
+set "required_dirs[12]=d:\sanskriti-flow\backend\data\cache\pnpm"
 
-for /L %%i in (0,1,8) do (
+for /L %%i in (0,1,12) do (
     if defined required_dirs[%%i] (
         set "dir=!required_dirs[%%i]!"
         if not exist "!dir!" (
@@ -88,8 +92,15 @@ setx TRANSFORMERS_CACHE "d:\sanskriti-flow\backend\data\cache\huggingface\transf
 setx TORCH_HOME "d:\sanskriti-flow\backend\data\cache\torch" >nul 2>&1
 setx XDG_CACHE_HOME "d:\sanskriti-flow\backend\data\cache" >nul 2>&1
 setx TMPDIR "d:\sanskriti-flow\backend\data\cache\tmp" >nul 2>&1
+setx TEMP "d:\sanskriti-flow\backend\data\cache\tmp" >nul 2>&1
+setx TMP "d:\sanskriti-flow\backend\data\cache\tmp" >nul 2>&1
 setx PIP_CACHE_DIR "d:\sanskriti-flow\backend\data\cache\pip" >nul 2>&1
 setx MPLCONFIGDIR "d:\sanskriti-flow\backend\data\cache\matplotlib" >nul 2>&1
+setx NPM_CONFIG_CACHE "d:\sanskriti-flow\backend\data\cache\npm" >nul 2>&1
+setx PLAYWRIGHT_BROWSERS_PATH "d:\sanskriti-flow\backend\data\cache\playwright" >nul 2>&1
+setx YARN_CACHE_FOLDER "d:\sanskriti-flow\backend\data\cache\yarn" >nul 2>&1
+setx PNPM_STORE_PATH "d:\sanskriti-flow\backend\data\cache\pnpm" >nul 2>&1
+setx PUPPETEER_CACHE_DIR "d:\sanskriti-flow\backend\data\cache\playwright" >nul 2>&1
 
 echo    ✓ Environment variables set
 echo    Note: CMD windows may need to be restarted to see changes
