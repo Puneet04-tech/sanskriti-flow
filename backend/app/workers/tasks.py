@@ -312,11 +312,25 @@ def localize_video_task(
             
             try:
                 # Generate explanation segments with simplified language
-                translated_segments = self.explainer.generate_explanation(segments, target_language)
+                explanation_segments = self.explainer.generate_explanation(segments, target_language)
+                
+                # Normalize: convert "explanation" field to "translated" for rest of pipeline
+                # (voice generation, video finalization, etc. all expect "translated" field)
+                translated_segments = []
+                for seg in explanation_segments:
+                    translated_segments.append({
+                        "start": seg.get("start", 0),
+                        "end": seg.get("end", 0),
+                        "original": seg.get("original", ""),
+                        "translated": seg.get("explanation", ""),  # ← Use explanation as translated text
+                        "explanation": seg.get("explanation", ""),  # Keep for metadata
+                        "language": "hinglish",
+                        "simplified": True
+                    })
                 
                 # Create full explanation script for metadata (use explained segments)
                 video_title = options.get("video_title", "Video")
-                explanation_script = self.explainer.create_explanation_script(translated_segments, video_title)
+                explanation_script = self.explainer.create_explanation_script(explanation_segments, video_title)
                 
                 logger.info(f"[{job_id}] Generated explanation with {len(translated_segments)} segments")
                 logger.info(f"[{job_id}] Explanation script length: {len(explanation_script)} characters")
