@@ -36,6 +36,10 @@ class LocalizationRequest(BaseModel):
     enable_drishti: bool = Field(False, description="Enable rural/edge mode")
     preserve_technical_terms: bool = Field(True, description="Keep technical terms in English")
     enable_explainer: bool = Field(False, description="Generate simplified Hinglish explanation video instead of dubbing")
+    clear_pending_queue: bool = Field(
+        True,
+        description="Clear pending queued jobs before adding this new job (recommended for single-user local setup)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -44,6 +48,7 @@ class LocalizationRequest(BaseModel):
                 "target_language": "hi",
                 "enable_quiz": True,
                 "enable_vision_sync": True,
+                "clear_pending_queue": True,
             }
         }
 

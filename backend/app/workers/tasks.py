@@ -17,6 +17,7 @@ from app.utils.video_utils import VideoProcessor
 from celery import Task
 from typing import Dict
 import os
+import json
 
 
 class LocalizationTask(Task):
@@ -617,6 +618,24 @@ def localize_video_task(
             raise Exception("Output video file was not created")
 
         logger.info(f"[{job_id}] Localization complete!")
+
+        try:
+            result_meta_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
+            persisted_result = {
+                "job_id": job_id,
+                "status": "completed",
+                "quizzes": quizzes,
+                "metadata": {
+                    "target_language": target_language,
+                    "num_segments": len(translated_segments),
+                    "num_quizzes": len(quizzes),
+                },
+            }
+            with open(result_meta_path, "w", encoding="utf-8") as result_file:
+                json.dump(persisted_result, result_file, ensure_ascii=False, indent=2)
+            logger.info(f"[{job_id}] Persisted job metadata: {result_meta_path}")
+        except Exception as persist_error:
+            logger.warning(f"[{job_id}] Could not persist job metadata: {persist_error}")
 
         return {
             "job_id": job_id,

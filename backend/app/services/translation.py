@@ -191,6 +191,27 @@ class TranslationService:
             truncation=True,
             max_length=512,
         ).to(self.device)
+
+        def _get_target_bos_id(tgt_code: str) -> int:
+            """Resolve target language BOS token id across tokenizer variants."""
+            if hasattr(self.tokenizer, "lang_code_to_id"):
+                lang_map = getattr(self.tokenizer, "lang_code_to_id") or {}
+                if tgt_code in lang_map:
+                    return int(lang_map[tgt_code])
+
+            token_id = self.tokenizer.convert_tokens_to_ids(tgt_code)
+            if token_id is None:
+                raise ValueError(f"Could not resolve token id for target language code: {tgt_code}")
+
+            try:
+                token_id = int(token_id)
+            except Exception:
+                raise ValueError(f"Invalid token id for target language code {tgt_code}: {token_id}")
+
+            if token_id < 0:
+                raise ValueError(f"Tokenizer returned invalid token id for {tgt_code}: {token_id}")
+
+            return token_id
         
         # Generate translation
         if self.is_opus_model:
@@ -210,10 +231,13 @@ class TranslationService:
             if not tgt_code:
                 raise ValueError(f"Unsupported target language: {target_lang}")
             
-            self.tokenizer.src_lang = src_code
+            if hasattr(self.tokenizer, "src_lang"):
+                self.tokenizer.src_lang = src_code
+
+            target_bos_id = _get_target_bos_id(tgt_code)
             generated_tokens = self.model.generate(
                 **inputs,
-                forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_code],
+                forced_bos_token_id=target_bos_id,
                 max_length=512,
                 num_beams=5,  # Maximum quality beam search
                 length_penalty=1.0,

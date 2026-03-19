@@ -12,6 +12,7 @@ from app.models.schemas import (
 )
 from app.core.logger import logger
 from app.workers.tasks import localize_video_task
+from app.workers.celery_app import celery_app
 import uuid
 import os
 
@@ -61,6 +62,18 @@ async def create_localization_job(request: LocalizationRequest):
 
         # Convert URL to string for JSON serialization
         video_url_str = str(request.video_url) if request.video_url else request.video_file
+
+        # Permanent queue control for local single-user workflow:
+        # clear stale pending jobs so fresh requests don't get blocked behind old backlog.
+        if request.clear_pending_queue:
+            try:
+                purged_count = celery_app.control.purge() or 0
+                if purged_count > 0:
+                    logger.warning(
+                        f"Purged {purged_count} pending queued task(s) before enqueuing new job {job_id}"
+                    )
+            except Exception as purge_error:
+                logger.warning(f"Queue purge skipped due to error: {purge_error}")
 
         # Queue job to Celery worker
         task = localize_video_task.apply_async(

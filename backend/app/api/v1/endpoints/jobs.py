@@ -11,6 +11,7 @@ from app.workers.celery_app import celery_app
 from celery.result import AsyncResult
 from typing import Dict
 import os
+import json
 
 router = APIRouter()
 
@@ -46,6 +47,18 @@ async def get_job_status(job_id: str = Path(..., description="Job ID to query"))
                     metadata = result.get("metadata", {})
             except Exception as e:
                 logger.warning(f"Could not retrieve quiz data for {job_id}: {e}")
+
+            # Fallback: read persisted metadata from sidecar JSON
+            if not quizzes and not metadata:
+                try:
+                    result_meta_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
+                    if os.path.exists(result_meta_path):
+                        with open(result_meta_path, "r", encoding="utf-8") as result_file:
+                            persisted = json.load(result_file)
+                        quizzes = persisted.get("quizzes", [])
+                        metadata = persisted.get("metadata", {})
+                except Exception as e:
+                    logger.warning(f"Could not read persisted metadata for {job_id}: {e}")
             
             response = JobStatusResponse(
                 job_id=job_id,
