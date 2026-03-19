@@ -89,10 +89,10 @@ start "Backend API" cmd /k "venv\Scripts\python.exe -m uvicorn main:app --reload
 REM Wait a few seconds for API to start
 timeout /t 3 /nobreak
 
-REM Start Celery Worker (using processes pool for reliable task queueing)
+REM Start Celery Worker (using threads pool for Windows compatibility - avoids semaphore errors)
 echo [Celery Worker] Starting with concurrent task processing...
 cd d:\sanskriti-flow\backend
-start "Celery Worker" cmd /k "venv\Scripts\python.exe -m celery -A app.workers.celery_app worker --loglevel=info --pool=processes --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1 --hostname=celery-main@%%h --without-gossip --without-heartbeat --without-mingle"
+start "Celery Worker" cmd /k "venv\Scripts\python.exe -m celery -A app.workers.celery_app worker --loglevel=info --pool=threads --concurrency=8 --prefetch-multiplier=1 --hostname=celery-main@%%h --without-gossip --without-heartbeat --without-mingle"
 
 REM Start Frontend
 echo [Frontend] Starting on port 3000...
