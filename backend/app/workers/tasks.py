@@ -312,12 +312,11 @@ def localize_video_task(
             
             try:
                 # Generate explanation segments with simplified language
-                explanation_result = self.explainer.generate_explanation(segments, target_language)
-                translated_segments = explanation_result["segments"]
+                translated_segments = self.explainer.generate_explanation(segments, target_language)
                 
-                # Create full explanation script for metadata
+                # Create full explanation script for metadata (use explained segments)
                 video_title = options.get("video_title", "Video")
-                explanation_script = self.explainer.create_explanation_script(segments, video_title)
+                explanation_script = self.explainer.create_explanation_script(translated_segments, video_title)
                 
                 logger.info(f"[{job_id}] Generated explanation with {len(translated_segments)} segments")
                 logger.info(f"[{job_id}] Explanation script length: {len(explanation_script)} characters")
