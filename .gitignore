@@ -55,6 +55,9 @@ models/*.bin
 data/videos/
 data/processed/
 data/cache/
+backend/data/cache/
+backend/data/temp/
+backend/data/output/
 *.mp4
 *.wav
 *.mp3
