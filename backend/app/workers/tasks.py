@@ -13,6 +13,8 @@ from app.services.voice_clone import get_voice_clone_service
 from app.services.cosyvoice2_clone import get_cosyvoice2_service
 from app.services.lip_sync import get_lip_sync_service
 from app.services.explainer_generator import ExplainerGenerator
+from app.services.swar_audio_descriptions import get_swar_service
+from app.services.drishti_rural_mode import get_drishti_service
 from app.utils.video_utils import VideoProcessor
 from celery import Task
 from typing import Dict
@@ -31,6 +33,8 @@ class LocalizationTask(Task):
         self._vision = None
         self._explainer = None
         self._cosyvoice2 = None
+        self._swar = None
+        self._drishti = None
 
     @property
     def transcription(self):
@@ -83,6 +87,26 @@ class LocalizationTask(Task):
                 logger.warning(f"CosyVoice2 service init failed: {e}")
                 self._cosyvoice2 = None
         return self._cosyvoice2
+    
+    @property
+    def swar(self):
+        if self._swar is None:
+            try:
+                self._swar = get_swar_service()
+            except Exception as e:
+                logger.warning(f"Swar service init failed: {e}")
+                self._swar = None
+        return self._swar
+    
+    @property
+    def drishti(self):
+        if self._drishti is None:
+            try:
+                self._drishti = get_drishti_service()
+            except Exception as e:
+                logger.warning(f"Drishti service init failed: {e}")
+                self._drishti = None
+        return self._drishti
     
     def _format_srt_time(self, seconds: float) -> str:
         """Format time in seconds to SRT timestamp format (HH:MM:SS,mmm)"""
@@ -510,6 +534,42 @@ def localize_video_task(
                 logger.warning(f"[{job_id}] Lip-sync failed: {e}. Continuing without lip-sync.")
                 # Continue with original video (audio will still be replaced)
 
+        # Stage 8.5: Swar - Audio Descriptions for Accessibility (Optional)
+        if options.get("enable_swar", False):
+            logger.info(f"[{job_id}] Stage 8.5: Generating Swar audio descriptions for accessibility")
+            self.update_state(state="PROCESSING", meta={"stage": "Generating audio descriptions (Swar)", "progress": 92})
+            
+            try:
+                if self.swar and self.swar.available:
+                    # Generate audio descriptions from video
+                    descriptions = self.swar.generate_descriptions_from_video(
+                        video_input_path,
+                        target_language=target_language,
+                        sample_interval=60,  # Every 2 seconds at 30fps
+                        include_gestures=True,
+                        include_diagrams=True
+                    )
+                    
+                    if descriptions:
+                        logger.info(f"[{job_id}] Generated {len(descriptions)} audio descriptions")
+                        
+                        # Save descriptions metadata
+                        swar_metadata_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}_swar.json")
+                        with open(swar_metadata_path, 'w', encoding='utf-8') as f:
+                            json.dump(descriptions, f, ensure_ascii=False, indent=2)
+                        
+                        logger.info(f"[{job_id}] ✅ Swar audio descriptions ready")
+                        options["swar_enabled"] = True
+                        options["swar_description_count"] = len(descriptions)
+                    else:
+                        logger.info(f"[{job_id}] No descriptions generated, continuing without Swar")
+                else:
+                    logger.warning(f"[{job_id}] Swar service not available")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] Swar generation failed: {e}. Continuing without audio descriptions.")
+                options["swar_enabled"] = False
+
         # Stage 8: Finalize - Merge Hindi audio and add subtitles to video
         logger.info(f"[{job_id}] Stage 8: Finalizing video with Hindi audio + subtitles")
         self.update_state(state="PROCESSING", meta={"stage": "Merging audio & subtitles", "progress": 95})
@@ -617,6 +677,54 @@ def localize_video_task(
         else:
             raise Exception("Output video file was not created")
 
+        # Stage 8.7: Drishti - Bandwidth Optimization for Rural Networks (Optional)
+        if options.get("enable_drishti", False):
+            logger.info(f"[{job_id}] Stage 8.7: Applying bandwidth optimization (Drishti) for rural networks")
+            self.update_state(state="PROCESSING", meta={"stage": "Optimizing for rural networks", "progress": 98})
+            
+            try:
+                if self.drishti and self.drishti.available:
+                    # Determine quality preset based on detected bandwidth
+                    quality_preset = options.get("drishti_quality", "low")  # Default to low (360p/500k)
+                    drishti_output_path = os.path.join(settings.OUTPUT_DIR, f"{job_id}_optimized.mp4")
+                    
+                    logger.info(f"[{job_id}] Optimizing video with Drishti (preset: {quality_preset})...")
+                    
+                    # Apply bandwidth optimization
+                    optimized_path = self.drishti.optimize_for_rural_mode(
+                        input_video=output_path,
+                        output_video=drishti_output_path,
+                        quality_preset=quality_preset
+                    )
+                    
+                    if optimized_path and os.path.exists(optimized_path):
+                        original_size = os.path.getsize(output_path) / (1024 * 1024)
+                        optimized_size = os.path.getsize(optimized_path) / (1024 * 1024)
+                        reduction_ratio = (original_size - optimized_size) / original_size * 100 if original_size > 0 else 0
+                        
+                        # Get bandwidth recommendations
+                        bandwidth_info = self.drishti.get_bandwidth_recommendations(optimized_size)
+                        logger.info(f"[{job_id}] ✅ Drishti optimization complete: {original_size:.2f}MB → {optimized_size:.2f}MB ({reduction_ratio:.1f}% reduction)")
+                        logger.info(f"[{job_id}] Bandwidth estimates: {bandwidth_info}")
+                        
+                        # Replace output with optimized version
+                        import shutil
+                        shutil.move(optimized_path, output_path)
+                        logger.info(f"[{job_id}] Replaced output with optimized version")
+                        
+                        options["drishti_enabled"] = True
+                        options["drishti_size_reduction_percent"] = round(reduction_ratio, 2)
+                        options["bandwidth_estimates"] = bandwidth_info
+                    else:
+                        logger.warning(f"[{job_id}] Drishti optimization failed, using original")
+                        options["drishti_enabled"] = False
+                else:
+                    logger.warning(f"[{job_id}] Drishti service not available")
+                    
+            except Exception as e:
+                logger.warning(f"[{job_id}] Drishti optimization failed: {e}. Using original video.")
+                options["drishti_enabled"] = False
+
         logger.info(f"[{job_id}] Localization complete!")
 
         try:
@@ -629,6 +737,21 @@ def localize_video_task(
                     "target_language": target_language,
                     "num_segments": len(translated_segments),
                     "num_quizzes": len(quizzes),
+                    "features_used": {
+                        "transcription": True,
+                        "translation": True,
+                        "hinglish": options.get("enable_hinglish", False),
+                        "voice_clone": options.get("enable_voice_clone", False),
+                        "lip_sync": options.get("enable_lip_sync", False),
+                        "ar_labeling": options.get("enable_ar_labeling", False),
+                        "quiz_generation": options.get("enable_quiz", False),
+                        "explainer": options.get("enable_explainer", False),
+                        "swar": options.get("swar_enabled", False),
+                        "drishti": options.get("drishti_enabled", False),
+                    },
+                    "swar_description_count": options.get("swar_description_count", 0),
+                    "drishti_size_reduction_percent": options.get("drishti_size_reduction_percent", 0),
+                    "bandwidth_estimates": options.get("bandwidth_estimates", {}),
                 },
             }
             with open(result_meta_path, "w", encoding="utf-8") as result_file:
@@ -647,6 +770,21 @@ def localize_video_task(
                 "target_language": target_language,
                 "num_segments": len(translated_segments),
                 "num_quizzes": len(quizzes),
+                "features_used": {
+                    "transcription": True,
+                    "translation": True,
+                    "hinglish": options.get("enable_hinglish", False),
+                    "voice_clone": options.get("enable_voice_clone", False),
+                    "lip_sync": options.get("enable_lip_sync", False),
+                    "ar_labeling": options.get("enable_ar_labeling", False),
+                    "quiz_generation": options.get("enable_quiz", False),
+                    "explainer": options.get("enable_explainer", False),
+                    "swar": options.get("swar_enabled", False),
+                    "drishti": options.get("drishti_enabled", False),
+                },
+                "swar_description_count": options.get("swar_description_count", 0),
+                "drishti_size_reduction_percent": options.get("drishti_size_reduction_percent", 0),
+                "bandwidth_estimates": options.get("bandwidth_estimates", {}),
             },
         }
 

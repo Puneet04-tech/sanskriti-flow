@@ -57,6 +57,9 @@ async def create_localization_job(request: LocalizationRequest):
             "enable_vision_sync": request.enable_vision_sync,
             "enable_lip_sync": request.enable_lip_sync,
             "enable_voice_clone": request.enable_voice_clone,
+            "enable_explainer": request.enable_explainer,
+            "enable_swar": request.enable_swar,
+            "enable_drishti": request.enable_drishti,
             "preserve_technical_terms": True,
         }
 
