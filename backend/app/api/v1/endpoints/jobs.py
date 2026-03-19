@@ -186,6 +186,102 @@ async def cancel_job(job_id: str = Path(..., description="Job ID to cancel")):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
+
+
+@router.get("/health/celery")
+async def health_check_celery():
+    """
+    Check if Celery worker is connected and ready to process tasks
+    
+    Returns active workers and their status
+    """
+    try:
+        # Ping workers to see if they're responding
+        inspector = celery_app.control.inspect(timeout=2)  # 2 second timeout
+        
+        # Check active workers
+        stats = inspector.stats()
+        active_workers = inspector.active()
+        
+        if not stats or not active_workers:
+            logger.warning("No Celery workers connected")
+            return {
+                "status": "disconnected",
+                "workers": [],
+                "message": "No active Celery workers found. Worker may not be started yet.",
+            }
+        
+        worker_info = []
+        for worker_name, worker_stats in stats.items():
+            worker_info.append({
+                "name": worker_name,
+                "pool": worker_stats.get("pool", {}).get("implementation", "unknown"),
+                "max_concurrency": worker_stats.get("pool", {}).get("max-concurrency", 1),
+                "active_tasks": len(active_workers.get(worker_name, [])),
+            })
+        
+        logger.info(f"Celery health check: {len(worker_info)} workers connected")
+        
+        return {
+            "status": "connected",
+            "workers": worker_info,
+            "message": f"{len(worker_info)} worker(s) ready for tasks",
+        }
+    
+    except Exception as e:
+        logger.warning(f"Celery health check failed: {str(e)}")
+        return {
+            "status": "error",
+            "workers": [],
+            "message": f"Failed to connect to Celery workers: {str(e)}",
+        }
+
+@router.get("/health/queues")
+async def health_check_queues():
+    """
+    Diagnostic endpoint: Check queue status and stuck tasks
+    
+    Returns information about queued and active tasks
+    """
+    try:
+        inspector = celery_app.control.inspect(timeout=2)
+        
+        # Get queues with reserved tasks and active tasks
+        active_tasks = inspector.active() or {}
+        reserved_tasks = inspector.reserved() or {}
+        scheduled_tasks = inspector.scheduled() or {}
+        
+        total_active = sum(len(v) for v in active_tasks.values())
+        total_reserved = sum(len(v) for v in reserved_tasks.values())
+        total_scheduled = sum(len(v) for v in scheduled_tasks.values())
+        
+        logger.info(f"Queue status - Active: {total_active}, Reserved: {total_reserved}, Scheduled: {total_scheduled}")
+        
+        return {
+            "status": "ok",
+            "active_tasks": total_active,
+            "reserved_tasks": total_reserved,
+            "scheduled_tasks": total_scheduled,
+            "workers_responding": len(active_tasks),
+            "message": f"Queue has {total_active} active, {total_reserved} reserved, {total_scheduled} scheduled tasks",
+        }
+    
+    except Exception as e:
+        logger.warning(f"Queue health check failed: {str(e)}")
+        return {
+            "status": "error",
+            "active_tasks": 0,
+            "reserved_tasks": 0,
+            "scheduled_tasks": 0,
+            "workers_responding": 0,
+            "message": str(e),
+        }
+
+
+
+
 @router.get("/")
 async def list_jobs():
     """

@@ -78,6 +78,17 @@ async def create_localization_job(request: LocalizationRequest):
             except Exception as purge_error:
                 logger.warning(f"Queue purge skipped due to error: {purge_error}")
 
+        # Check if Celery worker is available before queuing
+        try:
+            inspector = celery_app.control.inspect(timeout=1)
+            worker_stats = inspector.stats()
+            if not worker_stats:
+                logger.warning(f"No Celery workers available to process job {job_id}")
+                logger.warning("Make sure the Celery worker is started: python -m celery -A app.workers.celery_app worker")
+                # Still queue the task - worker might start soon
+        except Exception as e:
+            logger.warning(f"Could not verify worker availability: {e}")
+
         # Queue job to Celery worker
         task = localize_video_task.apply_async(
             args=[

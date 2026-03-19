@@ -77,6 +77,10 @@ echo [Redis] Starting on port 6379...
 cd d:\sanskriti-flow\redis
 start "Redis" redis-server redis.windows.conf >nul 2>&1
 
+REM Wait for Redis to be ready
+echo [Redis] Waiting for Redis to be ready...
+timeout /t 3 /nobreak
+
 REM Start Backend API
 echo [Backend API] Starting on port 8000...
 cd d:\sanskriti-flow\backend
@@ -85,9 +89,10 @@ start "Backend API" cmd /k "venv\Scripts\python.exe -m uvicorn main:app --reload
 REM Wait a few seconds for API to start
 timeout /t 3 /nobreak
 
-REM Start Celery Worker
-echo [Celery Worker] Starting...
-start "Celery Worker" cmd /k "venv\Scripts\python.exe -m celery -A app.workers.celery_app worker --loglevel=info --pool=solo --hostname=celery-main@%%h"
+REM Start Celery Worker (using processes pool for reliable task queueing)
+echo [Celery Worker] Starting with concurrent task processing...
+cd d:\sanskriti-flow\backend
+start "Celery Worker" cmd /k "venv\Scripts\python.exe -m celery -A app.workers.celery_app worker --loglevel=info --pool=processes --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1 --hostname=celery-main@%%h --without-gossip --without-heartbeat --without-mingle"
 
 REM Start Frontend
 echo [Frontend] Starting on port 3000...
